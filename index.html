@@ -288,8 +288,10 @@
       <button class="btn btn-primary" onclick="saveSyncSettings()">Save sync settings</button>
       <div id="syncStatus" class="helptext" style="margin-top:12px;"></div>
       <div class="row-actions">
-        <button class="btn btn-secondary" onclick="syncNow()">⟳ Sync now</button>
+        <button class="btn btn-secondary" onclick="syncPush()">⬆ Send this device up</button>
+        <button class="btn btn-secondary" onclick="syncPull()">⬇ Get from cloud</button>
       </div>
+      <p class="helptext" style="margin-top:8px;">Finish on one device, <strong>Send</strong>, then <strong>Get</strong> on the other. Whatever you Get replaces what's on that device.</p>
     </div>
     <div class="card">
       <h3>Danger zone</h3>
@@ -366,6 +368,12 @@ const Store = {
       catch(e){ /* fall through to default */ }
     }
     this.state = this.defaultState();
+  },
+  // For incidental writes (remembering the map position) that must NOT count as
+  // a data change — otherwise merely opening the app makes a device look
+  // "newer" than one holding real work.
+  saveQuiet(){
+    try { localStorage.setItem(this.KEY, JSON.stringify(this.state)); return true; } catch(e){ return false; }
   },
   save(){
     try {
@@ -701,7 +709,7 @@ function initMap(){
   map.on('moveend', () => {
     const c = map.getCenter();
     Store.state.settings.mapView = { lat:c.lat, lng:c.lng, zoom:map.getZoom() };
-    Store.save();
+    Store.saveQuiet(); // panning the map is not a data change
   });
   // Labels show/hide by zoom, so redraw them when the zoom changes.
   map.on('zoomend', () => { renderPaddocks(false); renderFeatures(); });
@@ -1728,57 +1736,87 @@ function renderSyncStatus(){
     ? `✓ Last synced ${new Date(last).toLocaleString()}`
     : 'Set up, but never synced. Tap Sync now.';
 }
-async function syncNow(){
-  if (!syncReady()){ alert('Fill in the project ID, API key and farm code first.'); return; }
+// How much real farm data a copy holds — used to stop an empty device
+// silently wiping one that holds actual work.
+function recordCount(state){
+  if (!state) return 0;
+  return ['mobs','paddocks','purchases','sales','expenses','weights','features','movements','paddockEvents']
+    .reduce((n,k)=> n + ((state[k]||[]).length), 0);
+}
+async function fetchRemote(){
+  const res = await fetch(syncDocUrl());
+  if (res.status === 404) return null;          // nothing uploaded yet
+  if (!res.ok) throw new Error('Cloud said ' + res.status + '. Check the project ID, API key, and that Firestore is enabled.');
+  const doc = await res.json();
+  const raw = doc.fields && doc.fields.data && doc.fields.data.stringValue;
+  return raw ? JSON.parse(raw) : null;
+}
+function syncGuard(){
+  if (!syncReady()){ alert('Fill in the project ID, API key and farm code first, then Save.'); return false; }
+  return true;
+}
+
+/* Send this device's data up, replacing the cloud copy. */
+async function syncPush(){
+  if (!syncGuard()) return;
   const box = document.getElementById('syncStatus');
-  if (box) box.textContent = 'Syncing…';
+  if (box) box.textContent = 'Sending…';
   try {
-    // 1. what's in the cloud?
-    const res = await fetch(syncDocUrl());
-    let remote = null;
-    if (res.status === 200){
-      const doc = await res.json();
-      const raw = doc.fields && doc.fields.data && doc.fields.data.stringValue;
-      if (raw) remote = JSON.parse(raw);
-    } else if (res.status !== 404){
-      throw new Error('Cloud said ' + res.status + '. Check the project ID, API key, and that Firestore is enabled.');
-    }
+    const remote = await fetchRemote();
+    const mine = recordCount(Store.state), theirs = recordCount(remote);
+    // The dangerous case: this device is empty, the cloud is not.
+    if (theirs > 0 && mine === 0 && !confirm(
+      `This device has no records, but the cloud copy has ${theirs}.\n\nSending now would ERASE the cloud copy. Did you mean "Get from cloud" instead?\n\nOK = erase the cloud anyway. Cancel = stop.`
+    )) { renderSyncStatus(); return; }
+    if (theirs > mine && mine > 0 && !confirm(
+      `The cloud copy has more records (${theirs}) than this device (${mine}).\n\nSend anyway and replace it?`
+    )) { renderSyncStatus(); return; }
 
-    const localTime = (Store.state.meta && Store.state.meta.lastModified) || '';
-    const remoteTime = (remote && remote.meta && remote.meta.lastModified) || '';
+    const body = { fields: {
+      data: { stringValue: JSON.stringify(Store.state) },
+      updatedAt: { stringValue: new Date().toISOString() }
+    }};
+    const put = await fetch(syncDocUrl(), { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    if (!put.ok) throw new Error('Upload failed (' + put.status + ').');
+    Store.state.settings.lastSyncedAt = new Date().toISOString();
+    Store.save(); renderSyncStatus();
+    toast(`Sent ${mine} record${mine===1?'':'s'} up`);
+  } catch(err){ syncFailed(err); }
+}
 
-    // 2. whoever saved last wins
-    if (remote && remoteTime > localTime){
-      if (!confirm(`The cloud copy is newer (saved ${new Date(remoteTime).toLocaleString()}).\n\nReplace what's on this device with it?`)) {
-        if (box) renderSyncStatus();
-        return;
-      }
-      const keep = { syncProject: Store.state.settings.syncProject, syncKey: Store.state.settings.syncKey, syncFarm: Store.state.settings.syncFarm };
-      Store.replaceAll(remote);
-      Object.assign(Store.state.settings, keep); // don't let a sync wipe our own credentials
-      Store.state.settings.lastSyncedAt = new Date().toISOString();
-      Store.save();
-      refreshHeader(); renderView(currentView);
-      toast('Pulled from cloud');
-    } else {
-      // push ours up
-      const body = { fields: {
-        data: { stringValue: JSON.stringify(Store.state) },
-        updatedAt: { stringValue: new Date().toISOString() }
-      }};
-      const put = await fetch(syncDocUrl(), {
-        method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
-      });
-      if (!put.ok) throw new Error('Upload failed (' + put.status + ').');
-      Store.state.settings.lastSyncedAt = new Date().toISOString();
-      Store.save();
-      toast(remote ? 'Pushed to cloud' : 'First copy uploaded');
-    }
-    renderSyncStatus();
-  } catch(err){
-    if (box) box.innerHTML = `<span style="color:var(--danger);">Sync failed: ${esc(err.message)}</span>`;
-    alert('Sync failed.\n\n' + err.message + '\n\nYour data on this device is untouched.');
-  }
+/* Pull the cloud copy down, replacing this device. */
+async function syncPull(){
+  if (!syncGuard()) return;
+  const box = document.getElementById('syncStatus');
+  if (box) box.textContent = 'Getting…';
+  try {
+    const remote = await fetchRemote();
+    if (!remote){ renderSyncStatus(); alert('Nothing in the cloud yet under that farm code.\n\nUse "Send this device up" on the device that has your work first.'); return; }
+    const mine = recordCount(Store.state), theirs = recordCount(remote);
+    if (mine > 0 && !confirm(
+      `Replace this device's ${mine} record${mine===1?'':'s'} with the ${theirs} from the cloud?\n\nAnything on this device that isn't in the cloud will be lost.`
+    )) { renderSyncStatus(); return; }
+
+    // Never let an incoming copy overwrite this device's own sync credentials.
+    const keep = {
+      syncProject: Store.state.settings.syncProject,
+      syncKey: Store.state.settings.syncKey,
+      syncFarm: Store.state.settings.syncFarm
+    };
+    Store.replaceAll(remote);
+    Object.assign(Store.state.settings, keep);
+    Store.state.settings.lastSyncedAt = new Date().toISOString();
+    Store.save();
+    refreshHeader();
+    if (map && paddockLayer){ renderPaddocks(true); renderFeatures(); }
+    renderView(currentView); renderSyncStatus();
+    toast(`Got ${theirs} record${theirs===1?'':'s'}`);
+  } catch(err){ syncFailed(err); }
+}
+function syncFailed(err){
+  const box = document.getElementById('syncStatus');
+  if (box) box.innerHTML = `<span style="color:var(--danger);">Sync failed: ${esc(err.message)}</span>`;
+  alert('Sync failed.\n\n' + err.message + '\n\nYour data on this device is untouched.');
 }
 
 /* ================= IMPORT ================= */
