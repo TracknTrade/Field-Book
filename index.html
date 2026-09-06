@@ -1,0 +1,1939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Field Book</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root{
+    --bg:#f4f6f2; --card:#ffffff; --border:#dfe4da; --text:#1f2a1f; --muted:#65735f;
+    --primary:#3f6b34; --primary-dark:#2f5127; --primary-light:#eaf2e6;
+    --danger:#b5432f; --danger-light:#fbeae6; --shadow:0 1px 3px rgba(0,0,0,.08);
+    --radius:12px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    font-size:16px; -webkit-tap-highlight-color:transparent;
+    padding-bottom:calc(64px + env(safe-area-inset-bottom));
+  }
+  header.topbar{
+    position:sticky; top:0; z-index:10;
+    background:var(--primary); color:#fff;
+    padding:14px 16px calc(14px + env(safe-area-inset-top)) 16px;
+    padding-top:calc(14px + env(safe-area-inset-top));
+    display:flex; align-items:center; justify-content:space-between;
+    box-shadow:var(--shadow);
+  }
+  header.topbar h1{font-size:19px; margin:0; font-weight:700;}
+  header.topbar .sub{font-size:12px; opacity:.85; margin-top:2px;}
+  .icon-btn{
+    background:rgba(255,255,255,.15); border:none; color:#fff; border-radius:10px;
+    width:40px; height:40px; font-size:18px; display:flex; align-items:center; justify-content:center;
+  }
+  main{padding:14px 14px 24px 14px; max-width:720px; margin:0 auto;}
+  .view{display:none;}
+  .view.active{display:block;}
+
+  .card{background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:14px; margin-bottom:12px; box-shadow:var(--shadow);}
+  .card h3{margin:0 0 10px 0; font-size:15px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em;}
+  .stat-row{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .stat{background:var(--primary-light); border-radius:10px; padding:10px 12px;}
+  .stat .num{font-size:22px; font-weight:700; color:var(--primary-dark);}
+  .stat .num.neg{color:var(--danger);}
+  .stat .lbl{font-size:12px; color:var(--muted); margin-top:2px;}
+
+  .list-item{
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    padding:12px 4px; border-bottom:1px solid var(--border); cursor:pointer;
+  }
+  .list-item:last-child{border-bottom:none;}
+  .list-item .main{flex:1; min-width:0;}
+  .list-item .title{font-weight:600; font-size:15px;}
+  .list-item .meta{font-size:12.5px; color:var(--muted); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .list-item .amt{font-weight:700; white-space:nowrap;}
+  .amt.pos{color:var(--primary-dark);} .amt.neg{color:var(--danger);}
+  .pill{display:inline-block; font-size:11px; padding:2px 8px; border-radius:999px; background:var(--primary-light); color:var(--primary-dark); font-weight:600;}
+  .pill.sold{background:#eee; color:var(--muted);}
+  .empty-state{text-align:center; color:var(--muted); padding:30px 10px; font-size:14px;}
+
+  .fab{
+    position:fixed; right:18px; bottom:calc(78px + env(safe-area-inset-bottom));
+    width:54px; height:54px; border-radius:50%; background:var(--primary); color:#fff;
+    border:none; font-size:28px; box-shadow:0 4px 10px rgba(0,0,0,.25); z-index:20;
+    display:flex; align-items:center; justify-content:center;
+  }
+
+  nav.tabbar{
+    position:fixed; bottom:0; left:0; right:0; z-index:15;
+    background:#fff; border-top:1px solid var(--border);
+    display:flex; padding-bottom:env(safe-area-inset-bottom);
+  }
+  nav.tabbar button{
+    flex:1; background:none; border:none; padding:9px 2px 8px 2px;
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    color:var(--muted); font-size:11px; font-family:inherit;
+  }
+  nav.tabbar button .ic{font-size:19px;}
+  nav.tabbar button.active{color:var(--primary-dark); font-weight:700;}
+
+  form label{display:block; font-size:12.5px; color:var(--muted); margin:10px 0 4px 0; font-weight:600;}
+  form input, form select, form textarea{
+    width:100%; padding:10px 11px; border:1px solid var(--border); border-radius:9px;
+    font-size:15px; font-family:inherit; background:#fbfcfa;
+  }
+  form textarea{min-height:60px; resize:vertical;}
+  .field-row{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    padding:11px 16px; border-radius:10px; border:none; font-size:15px; font-weight:600;
+    font-family:inherit; cursor:pointer;
+  }
+  .btn-primary{background:var(--primary); color:#fff; width:100%; margin-top:16px;}
+  .btn-secondary{background:var(--primary-light); color:var(--primary-dark);}
+  .btn-danger{background:var(--danger-light); color:var(--danger);}
+  .btn-block{width:100%;}
+  .btn-ghost{background:none; color:var(--muted); border:1px solid var(--border);}
+  .row-actions{display:flex; gap:8px; margin-top:14px;}
+  .row-actions .btn{flex:1; margin-top:0;}
+
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(20,25,15,.45); z-index:50;
+    display:flex; align-items:flex-end; justify-content:center;
+  }
+  .modal-backdrop.hidden{display:none;}
+  .modal-sheet{
+    background:#fff; width:100%; max-width:560px; border-radius:16px 16px 0 0;
+    max-height:88vh; overflow-y:auto; padding:18px 18px calc(20px + env(safe-area-inset-bottom)) 18px;
+  }
+  .modal-sheet h2{margin:0 0 4px 0; font-size:18px;}
+  .modal-close{float:right; background:none; border:none; font-size:20px; color:var(--muted);}
+
+  .segmented{display:flex; border:1px solid var(--border); border-radius:9px; overflow:hidden;}
+  .segmented button{flex:1; padding:9px 4px; background:#fbfcfa; border:none; font-size:13px; color:var(--muted); font-family:inherit;}
+  .segmented button.active{background:var(--primary); color:#fff; font-weight:600;}
+
+  table.report-table{width:100%; min-width:520px; border-collapse:collapse; font-size:13.5px;}
+  table.report-table th, table.report-table td{text-align:left; padding:8px 10px; border-bottom:1px solid var(--border); white-space:nowrap;}
+  table.report-table th{color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase;}
+  table.report-table td.num{text-align:right; font-variant-numeric:tabular-nums;}
+  table.report-table td:first-child{white-space:normal; max-width:140px;}
+
+  .import-drop{
+    border:2px dashed var(--border); border-radius:12px; padding:26px 14px; text-align:center;
+    color:var(--muted); margin-bottom:14px;
+  }
+  .import-row{border:1px solid var(--border); border-radius:10px; padding:10px; margin-bottom:8px;}
+  .import-row .grid2{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px;}
+  .badge-new{font-size:10.5px; background:var(--primary-light); color:var(--primary-dark); padding:1px 6px; border-radius:6px; margin-left:6px;}
+  .helptext{font-size:12.5px; color:var(--muted); line-height:1.5;}
+  .toast{
+    position:fixed; left:50%; transform:translateX(-50%); bottom:calc(90px + env(safe-area-inset-bottom));
+    background:#26311f; color:#fff; padding:10px 18px; border-radius:999px; font-size:13.5px; z-index:60;
+    opacity:0; pointer-events:none; transition:opacity .2s;
+  }
+  .toast.show{opacity:1;}
+
+  /* ---- map ---- */
+  #mapCanvas{height:56vh; min-height:280px; width:100%; background:#dfe4da;}
+  .map-wrap{position:relative; margin:-14px -14px 12px -14px;}
+  .map-actions{position:absolute; left:0; right:0; bottom:12px; z-index:500; display:flex; gap:8px; justify-content:center; padding:0 12px; pointer-events:none;}
+  .map-actions .btn{pointer-events:auto; background:#fff; color:var(--primary-dark); box-shadow:0 2px 8px rgba(0,0,0,.25); font-size:14px; padding:9px 14px;}
+  .map-actions .btn.active{background:var(--primary); color:#fff;}
+  .map-hint{
+    position:absolute; top:10px; left:12px; right:12px; z-index:500; pointer-events:none;
+    background:rgba(31,42,31,.86); color:#fff; padding:9px 12px; border-radius:9px; font-size:13px; text-align:center;
+  }
+  /* Labels get a dark pill behind them: paddock names and pin names routinely
+     land on top of each other (a trough is usually mid-paddock), and plain
+     text-shadow isn't enough to keep both readable when they overlap. */
+  .paddock-label{
+    background:none; border:none; box-shadow:none;
+    color:#fff; font-size:12px; font-weight:600; white-space:nowrap;
+    text-align:center; transform:translate(-50%, -50%);
+  }
+  .paddock-label .tag{
+    display:inline-block; background:rgba(20,26,18,.62); padding:2px 7px; border-radius:6px;
+    backdrop-filter:blur(2px);
+  }
+  .paddock-label .hd{display:block; font-weight:400; font-size:11px; margin-top:2px;}
+  .paddock-label .icon{font-size:20px; line-height:1; text-shadow:0 1px 4px rgba(0,0,0,.8);}
+  .leaflet-container{font-family:inherit;}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div>
+    <h1 id="farmNameHeader">Field Book</h1>
+    <div class="sub" id="farmSubHeader">your farm, your numbers</div>
+  </div>
+  <button class="icon-btn" onclick="showView('settings')" aria-label="Settings">⚙</button>
+</header>
+
+<main>
+
+  <section class="view" id="view-dashboard">
+    <div class="map-wrap">
+      <div id="mapCanvas"></div>
+      <div class="map-hint" id="mapHint" style="display:none;"></div>
+      <div class="map-actions">
+        <button class="btn" id="btnDrawPaddock" onclick="toggleDrawPaddock()">✏️ Paddock</button>
+        <button class="btn" id="btnDropPin" onclick="togglePinMode()">📍 Pin</button>
+        <button class="btn" id="btnStock" onclick="openStockSheet()">🐄 Stock</button>
+        <button class="btn" id="btnFinishPaddock" onclick="finishPaddock()" style="display:none;">✓ Finish</button>
+        <button class="btn" id="btnCancelPaddock" onclick="cancelDrawPaddock()" style="display:none;">Cancel</button>
+        <button class="btn" id="btnLocate" onclick="locateMe()">◎ Me</button>
+      </div>
+    </div>
+    <div id="attentionCard"></div>
+    <div class="card">
+      <h3>Herd</h3>
+      <div class="stat-row">
+        <div class="stat"><div class="num" id="dashHeadOnFarm">0</div><div class="lbl">head on farm</div></div>
+        <div class="stat"><div class="num" id="dashMobCount">0</div><div class="lbl">active mobs</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>This financial year <span id="dashFYLabel" style="text-transform:none; font-weight:400; letter-spacing:0;"></span></h3>
+      <div class="stat-row">
+        <div class="stat"><div class="num" id="dashRevenue">$0</div><div class="lbl">sales revenue</div></div>
+        <div class="stat"><div class="num" id="dashCosts">$0</div><div class="lbl">purchases + expenses</div></div>
+      </div>
+      <div class="stat-row" style="margin-top:10px;">
+        <div class="stat" style="grid-column:1/-1;"><div class="num" id="dashMargin">$0</div><div class="lbl">running margin</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Recent activity</h3>
+      <div id="dashActivity"></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-mobs">
+    <div id="mobsList"></div>
+  </section>
+
+  <section class="view" id="view-mobdetail">
+    <button class="btn btn-ghost" style="margin-bottom:10px;" onclick="showView('mobs')">&larr; All mobs</button>
+    <div id="mobDetailBody"></div>
+  </section>
+
+  <section class="view" id="view-expenses">
+    <div class="card" style="padding:10px 12px;">
+      <div class="segmented" id="expenseFilter"></div>
+    </div>
+    <div id="expensesList"></div>
+  </section>
+
+  <section class="view" id="view-import">
+    <div class="card">
+      <h3>Bring in purchase records</h3>
+      <p class="helptext">Import an exported spreadsheet of livestock purchases &mdash; works with a Track n Trade "Export Excel" file, or a plain CSV with columns like date, head, weight, price and total. Nothing is saved until you review and confirm each row below.</p>
+      <div class="import-drop">
+        <div style="font-size:28px;">📄</div>
+        <div style="margin:8px 0;">Choose a .xls or .csv export</div>
+        <input type="file" id="importFile" accept=".xls,.csv,text/csv" style="display:none;">
+        <button class="btn btn-primary" style="margin-top:6px;" onclick="document.getElementById('importFile').click()">Choose file</button>
+      </div>
+    </div>
+    <div id="importReview"></div>
+  </section>
+
+  <section class="view" id="view-reports">
+    <div class="card">
+      <h3>By mob</h3>
+      <div style="overflow-x:auto;">
+        <table class="report-table" id="reportMobTable"></table>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Whole farm</h3>
+      <div id="reportFarmTotals"></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-settings">
+    <div class="card">
+      <h3>Farm details</h3>
+      <label>Farm name</label>
+      <input id="settingFarmName" type="text" placeholder="e.g. Riverbend">
+      <label>Currency symbol</label>
+      <input id="settingCurrency" type="text" maxlength="3" placeholder="$">
+      <button class="btn btn-primary" onclick="saveSettingsForm()">Save</button>
+    </div>
+    <div class="card">
+      <h3>Backup &amp; restore</h3>
+      <p class="helptext">Your data lives only in this browser. Export a backup regularly, especially before clearing browser data or switching devices.</p>
+      <div id="storageGauge" class="helptext" style="margin:10px 0;"></div>
+      <div class="row-actions">
+        <button class="btn btn-secondary" onclick="exportBackup()">Export backup (.json)</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('restoreFile').click()">Restore backup</button>
+      </div>
+      <input type="file" id="restoreFile" accept="application/json" style="display:none;">
+    </div>
+    <div class="card">
+      <h3>Sync between devices</h3>
+      <p class="helptext">Keeps this phone and your laptop showing the same records. Paste the two values from your Firebase project, then use the same farm code on every device.</p>
+      <label>Firebase project ID</label>
+      <input id="syncProject" type="text" placeholder="e.g. field-book-1a2b3" autocomplete="off">
+      <label>Web API key</label>
+      <input id="syncKey" type="text" placeholder="AIza..." autocomplete="off">
+      <label>Farm code (make one up — same on every device)</label>
+      <input id="syncFarm" type="text" placeholder="e.g. kalkadoon-7fj29d" autocomplete="off">
+      <button class="btn btn-primary" onclick="saveSyncSettings()">Save sync settings</button>
+      <div id="syncStatus" class="helptext" style="margin-top:12px;"></div>
+      <div class="row-actions">
+        <button class="btn btn-secondary" onclick="syncNow()">⟳ Sync now</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Danger zone</h3>
+      <button class="btn btn-danger btn-block" onclick="confirmResetAll()">Erase all data</button>
+    </div>
+  </section>
+
+</main>
+
+<button class="fab" id="fabBtn">+</button>
+
+<nav class="tabbar">
+  <button data-view="dashboard"><span class="ic">🗺️</span>Map</button>
+  <button data-view="mobs"><span class="ic">🐄</span>Mobs</button>
+  <button data-view="expenses"><span class="ic">🧾</span>Expenses</button>
+  <button data-view="import"><span class="ic">📥</span>Import</button>
+  <button data-view="reports"><span class="ic">📊</span>Reports</button>
+</nav>
+
+<div class="modal-backdrop hidden" id="modal">
+  <div class="modal-sheet" id="modalSheet"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------- generic helpers ---------- */
+function uid(prefix){ return (prefix||'id') + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function money(n){
+  const c = (Store.state.settings.currency || '$');
+  n = Number(n)||0;
+  const neg = n < 0;
+  const s = c + Math.abs(n).toLocaleString(undefined, {maximumFractionDigits:0});
+  return neg ? '-' + s : s;
+}
+function fmtDate(iso){
+  if(!iso) return '';
+  const d = new Date(iso + (iso.length<=10 ? 'T00:00:00' : ''));
+  if (isNaN(d)) return iso;
+  return d.toLocaleDateString(undefined, {day:'2-digit', month:'short', year:'numeric'});
+}
+// Local calendar date, NOT UTC. toISOString() would hand back yesterday every
+// morning before 10am in eastern Australia, dating records a day early and
+// throwing every day-count out by one.
+function localISO(d){
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function todayISO(){ return localISO(new Date()); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+/* ---------- data store ---------- */
+const Store = {
+  KEY: 'fieldbook_v1',
+  state: null,
+  defaultState(){
+    return {
+      mobs: [], purchases: [], sales: [], expenses: [], weights: [], paddocks: [], features: [],
+      movements: [], paddockEvents: [],
+      settings: { farmName: '', currency: '$' },
+      meta: { lastModified: null }
+    };
+  },
+  load(){
+    let raw = null;
+    try { raw = localStorage.getItem(this.KEY); } catch(e){}
+    if (raw) {
+      try { this.state = Object.assign(this.defaultState(), JSON.parse(raw)); return; }
+      catch(e){ /* fall through to default */ }
+    }
+    this.state = this.defaultState();
+  },
+  save(){
+    try {
+      // Stamped on every write so sync can tell which device is ahead.
+      if (this.state.meta) this.state.meta.lastModified = new Date().toISOString();
+      localStorage.setItem(this.KEY, JSON.stringify(this.state));
+      return true;
+    } catch(e){
+      // Storage is full — the change did NOT reach disk. The record is still
+      // sitting in memory, so without this the screen would keep showing it as
+      // saved and it would vanish on the next reload. Reload from storage so
+      // the screen tells the truth, and use a blocking alert so it can't be
+      // missed behind a toast.
+      this.load();
+      alert('OUT OF STORAGE — that change was NOT saved.\n\n'
+        + 'Field Book keeps everything in this browser, and attached invoices and photos take up most of the room.\n\n'
+        + 'Go to Settings, export a backup now to be safe, then delete some attachments to free up space.');
+      return false;
+    }
+  },
+  // Rough size of everything stored, for the Settings gauge.
+  usageBytes(){
+    try { return JSON.stringify(this.state).length; } catch(e){ return 0; }
+  },
+  replaceAll(newState){
+    this.state = Object.assign(this.defaultState(), newState || {});
+    this.save();
+  },
+
+  getMobs(){ return this.state.mobs; },
+  getMob(id){ return this.state.mobs.find(m => m.id === id); },
+  addMob(m){ m.id = uid('mob'); this.state.mobs.unshift(m); this.save(); return m; },
+  updateMob(id, patch){ Object.assign(this.getMob(id), patch); this.save(); },
+  deleteMob(id){
+    this.state.mobs = this.state.mobs.filter(m => m.id !== id);
+    ['purchases','sales','expenses','weights'].forEach(k => {
+      this.state[k] = this.state[k].filter(r => r.mobId !== id);
+    });
+    this.save();
+  },
+
+  addPurchase(p){ p.id = uid('pur'); this.state.purchases.unshift(p); this.save(); return p; },
+  addSale(s){ s.id = uid('sale'); this.state.sales.unshift(s); this.save(); return s; },
+  addExpense(e){ e.id = uid('exp'); this.state.expenses.unshift(e); this.save(); return e; },
+  addWeight(w){ w.id = uid('wt'); this.state.weights.unshift(w); this.save(); return w; },
+  deleteRecord(kind, id){ this.state[kind] = this.state[kind].filter(r => r.id !== id); this.save(); },
+
+  forMob(kind, mobId){ return this.state[kind].filter(r => r.mobId === mobId); },
+
+  getPaddocks(){ return this.state.paddocks; },
+  getPaddock(id){ return this.state.paddocks.find(p => p.id === id); },
+  addPaddock(p){ p.id = uid('pad'); this.state.paddocks.push(p); this.save(); return p; },
+  updatePaddock(id, patch){ Object.assign(this.getPaddock(id), patch); this.save(); },
+  deletePaddock(id){
+    this.state.paddocks = this.state.paddocks.filter(p => p.id !== id);
+    // Don't orphan mobs that were sitting in it.
+    this.state.mobs.forEach(m => { if (m.paddockId === id) m.paddockId = null; });
+    this.save();
+  },
+  mobsInPaddock(id){ return this.state.mobs.filter(m => m.paddockId === id && mobRemaining(m.id) > 0); },
+
+  getFeatures(){ return this.state.features; },
+  getFeature(id){ return this.state.features.find(f => f.id === id); },
+  addFeature(f){ f.id = uid('ft'); this.state.features.push(f); this.save(); return f; },
+  updateFeature(id, patch){ Object.assign(this.getFeature(id), patch); this.save(); },
+  deleteFeature(id){ this.state.features = this.state.features.filter(f => f.id !== id); this.save(); },
+};
+
+/* ---------- financial calculations ---------- */
+// A mob's head count is derived, not stored as a running total: starting count
+// (set on the mob, e.g. for home-bred stock with no purchase record) plus every
+// purchase logged against it, minus every sale — however many partial sales
+// there have been. This can never drift out of sync since nothing mutates it.
+function mobHeadBought(mobId){
+  return Store.forMob('purchases', mobId).reduce((s,p)=> s + (Number(p.headCount)||0), 0);
+}
+function mobHeadSold(mobId){
+  return Store.forMob('sales', mobId).reduce((s,x)=> s + (Number(x.headCount)||0), 0);
+}
+function mobRemaining(mobId){
+  const m = Store.getMob(mobId);
+  const starting = m ? (Number(m.headCount)||0) : 0;
+  return starting + mobHeadBought(mobId) - mobHeadSold(mobId);
+}
+// "12 of 20 hd" once part of a mob has been sold, plain "20 hd" otherwise.
+function mobHeadSummary(mobId){
+  const remaining = mobRemaining(mobId);
+  const sold = mobHeadSold(mobId);
+  if (!sold) return `${remaining} hd`;
+  return `${remaining} of ${remaining + sold} hd left`;
+}
+function mobStatusPill(m){
+  const remaining = mobRemaining(m.id);
+  const sold = mobHeadSold(m.id);
+  if (sold > 0 && remaining <= 0) return '<span class="pill sold">Sold out</span>';
+  if (sold > 0) return '<span class="pill">Part sold</span>';
+  return '<span class="pill">On farm</span>';
+}
+function mobFinancials(mobId){
+  const purchases = Store.forMob('purchases', mobId);
+  const sales = Store.forMob('sales', mobId);
+  const expenses = Store.forMob('expenses', mobId);
+  const weights = Store.forMob('weights', mobId).slice().sort((a,b)=> a.date.localeCompare(b.date));
+
+  const totalCost = purchases.reduce((s,p)=> s + (Number(p.totalCost)||0), 0);
+  const totalRevenue = sales.reduce((s,x)=> s + (Number(x.totalRevenue)||0), 0);
+  const totalExpenses = expenses.reduce((s,x)=> s + (Number(x.amount)||0), 0);
+  const margin = totalRevenue - totalCost - totalExpenses;
+  const remaining = mobRemaining(mobId);
+  const headSold = mobHeadSold(mobId);
+
+  let weightGainKg = null, costPerKgGained = null;
+  if (weights.length >= 2) {
+    weightGainKg = (Number(weights[weights.length-1].avgWeightKg)||0) - (Number(weights[0].avgWeightKg)||0);
+    const headBought = purchases.reduce((s,p)=> s + (Number(p.headCount)||0), 0) || 1;
+    const totalGainKg = weightGainKg * headBought;
+    if (totalGainKg > 0) costPerKgGained = (totalCost + totalExpenses) / totalGainKg;
+  }
+  return { totalCost, totalRevenue, totalExpenses, margin, weightGainKg, costPerKgGained, purchases, sales, expenses, weights, remaining, headSold };
+}
+
+// Australian financial year: 1 July – 30 June.
+function currentFY(today){
+  const d = today ? new Date(today) : new Date();
+  const startYear = d.getMonth() >= 6 ? d.getFullYear() : d.getFullYear() - 1;
+  return {
+    from: startYear + '-07-01',
+    to: (startYear + 1) + '-06-30',
+    label: 'FY ' + startYear + '/' + String(startYear + 1).slice(2)
+  };
+}
+// Pass a {from,to} range to scope the totals to a period; omit it for all time.
+function farmTotals(range){
+  const inRange = (dateStr) => !range || (dateStr >= range.from && dateStr <= range.to);
+  let totalCost=0, totalRevenue=0, totalExpenses=0;
+  Store.state.purchases.forEach(p => { if (inRange(p.date)) totalCost += Number(p.totalCost)||0; });
+  Store.state.sales.forEach(s => { if (inRange(s.date)) totalRevenue += Number(s.totalRevenue)||0; });
+  Store.state.expenses.forEach(e => { if (inRange(e.date)) totalExpenses += Number(e.amount)||0; });
+  return { totalCost, totalRevenue, totalExpenses, margin: totalRevenue - totalCost - totalExpenses };
+}
+
+/* ---------- invoice / receipt attachments ----------
+   Files are held in the record itself as a data URL, so a purchase, sale or
+   expense carries its own paperwork with no server involved and it travels
+   with the JSON backup. Kept deliberately small — browser storage is finite. */
+const MAX_ATTACHMENT_BYTES = 2 * 1024 * 1024;
+let pendingAttachment = null;
+function attachmentFieldHtml(existing){
+  return `
+    <label>Invoice / receipt (optional)</label>
+    <input type="file" accept="application/pdf,image/*" onchange="handleAttachmentPick(this)">
+    <div class="helptext" id="attachmentName">${existing ? '📎 ' + esc(existing.name) : 'Attach the invoice or a photo of it — PDF or image, up to 2 MB.'}</div>`;
+}
+function handleAttachmentPick(input){
+  const file = input.files[0];
+  const label = document.getElementById('attachmentName');
+  if (!file){ pendingAttachment = null; return; }
+  if (file.size > MAX_ATTACHMENT_BYTES){
+    alert('That file is ' + Math.round(file.size/1024/1024*10)/10 + ' MB. Please attach something under 2 MB — a photo of the invoice, or a compressed PDF.');
+    input.value = ''; pendingAttachment = null; return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(){
+    pendingAttachment = { name: file.name, type: file.type, dataUrl: reader.result };
+    if (label) label.textContent = '📎 ' + file.name + ' attached';
+  };
+  reader.readAsDataURL(file);
+}
+function openAttachment(kind, id){
+  const rec = (Store.state[kind]||[]).find(r => r.id === id);
+  if (!rec || !rec.attachment) return;
+  const parts = rec.attachment.dataUrl.split(',');
+  const mime = (parts[0].match(/:(.*?);/)||[])[1] || 'application/octet-stream';
+  const bin = atob(parts[1]);
+  const bytes = new Uint8Array(bin.length);
+  for (let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+  const url = URL.createObjectURL(new Blob([bytes], {type:mime}));
+  window.open(url, '_blank');
+  setTimeout(()=> URL.revokeObjectURL(url), 30000);
+}
+function attachmentChip(kind, r){
+  if (!r.attachment) return '';
+  return `<button class="btn btn-ghost" style="padding:3px 8px; font-size:12px; margin-top:4px;" onclick="event.stopPropagation(); openAttachment('${kind}','${r.id}')">📎 ${esc(r.attachment.name)}</button>`;
+}
+
+/* ---------- modal system ---------- */
+function openModal(html){
+  pendingAttachment = null;
+  document.getElementById('modalSheet').innerHTML = html;
+  document.getElementById('modal').classList.remove('hidden');
+}
+function closeModal(){
+  document.getElementById('modal').classList.add('hidden');
+  document.getElementById('modalSheet').innerHTML = '';
+}
+document.getElementById('modal').addEventListener('click', (e)=>{
+  if (e.target.id === 'modal') closeModal();
+});
+
+/* ---------- view router ---------- */
+let currentView = 'dashboard';
+let currentMobId = null;
+function showView(name){
+  currentView = name;
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  const el = document.getElementById('view-' + name);
+  if (el) el.classList.add('active');
+  document.querySelectorAll('nav.tabbar button').forEach(b => b.classList.toggle('active', b.dataset.view === name));
+  document.getElementById('fabBtn').style.display = (name === 'dashboard' || name === 'import' || name === 'reports' || name === 'settings' || name === 'mobdetail') ? 'none' : 'flex';
+  renderView(name);
+}
+function renderView(name){
+  if (name === 'dashboard') renderDashboard();
+  else if (name === 'mobs') renderMobsList();
+  else if (name === 'expenses') renderExpenses();
+  else if (name === 'reports') renderReports();
+  else if (name === 'settings') renderSettingsForm();
+}
+document.querySelectorAll('nav.tabbar button').forEach(btn => {
+  btn.addEventListener('click', () => showView(btn.dataset.view));
+});
+document.getElementById('fabBtn').addEventListener('click', () => {
+  if (currentView === 'mobs') openMobForm();
+  else if (currentView === 'expenses') openExpenseForm();
+});
+
+/* ---------- header / farm name ---------- */
+function refreshHeader(){
+  document.getElementById('farmNameHeader').textContent = Store.state.settings.farmName || 'Field Book';
+  document.getElementById('farmSubHeader').textContent = Store.state.settings.farmName ? 'Field Book' : 'your farm, your numbers';
+}
+
+/* ================= GRAZING, PADDOCK HISTORY & REMINDERS =================
+   Movements are the source of truth for "where is this mob and how long has it
+   been there" — the mob's paddockId is just the latest movement, kept on the
+   record so the map doesn't have to walk history to draw a label. */
+const EVENT_TYPES = {
+  'Fertiliser': { icon:'🌱', withholding:true },
+  'Spray':      { icon:'🧪', withholding:true },
+  'Slashing':   { icon:'🚜', withholding:false },
+  'Fencing':    { icon:'🔨', withholding:false },
+  'Water':      { icon:'💧', withholding:false },
+  'Job to do':  { icon:'📋', withholding:false },
+  'Other':      { icon:'📝', withholding:false }
+};
+
+function daysBetween(fromISO, toISO){
+  const a = new Date(fromISO + 'T00:00:00'), b = new Date((toISO||todayISO()) + 'T00:00:00');
+  return Math.round((b - a) / 86400000);
+}
+function addDays(iso, days){
+  const d = new Date(iso + 'T00:00:00');
+  d.setDate(d.getDate() + Number(days||0));
+  return localISO(d); // see localISO — must not round-trip through UTC
+}
+
+function moveMob(mobId, toPaddockId, date, notes){
+  const mob = Store.getMob(mobId);
+  const from = mob.paddockId || null;
+  Store.state.movements.push({
+    id: uid('mv'), mobId, fromPaddockId: from, toPaddockId: toPaddockId || null,
+    date: date || todayISO(), notes: notes || ''
+  });
+  mob.paddockId = toPaddockId || null;
+  Store.save();
+}
+function mobMovements(mobId){
+  return Store.state.movements.filter(m => m.mobId === mobId).sort((a,b)=> a.date.localeCompare(b.date));
+}
+// How long this mob has been where it is now.
+function mobDaysInPaddock(mobId){
+  const mob = Store.getMob(mobId);
+  if (!mob || !mob.paddockId) return null;
+  const arrivals = mobMovements(mobId).filter(m => m.toPaddockId === mob.paddockId);
+  if (!arrivals.length) return null;
+  return daysBetween(arrivals[arrivals.length-1].date);
+}
+function paddockOccupants(paddockId){
+  return Store.state.mobs.filter(m => m.paddockId === paddockId && mobRemaining(m.id) > 0);
+}
+// Days since the last mob walked out — only meaningful while it's empty.
+function paddockDaysFree(paddockId){
+  if (paddockOccupants(paddockId).length) return null;
+  const departures = Store.state.movements
+    .filter(m => m.fromPaddockId === paddockId)
+    .sort((a,b)=> a.date.localeCompare(b.date));
+  if (!departures.length) return null;
+  return daysBetween(departures[departures.length-1].date);
+}
+
+function paddockEvents(paddockId){
+  return Store.state.paddockEvents.filter(e => e.paddockId === paddockId)
+    .sort((a,b)=> b.date.localeCompare(a.date));
+}
+// Any fertiliser/spray whose withholding period hasn't run out yet.
+function activeWithholding(paddockId){
+  const today = todayISO();
+  const live = paddockEvents(paddockId)
+    .filter(e => e.withholdingDays > 0 && addDays(e.date, e.withholdingDays) > today)
+    .map(e => ({ ...e, clearDate: addDays(e.date, e.withholdingDays), daysLeft: daysBetween(today, addDays(e.date, e.withholdingDays)) }))
+    .sort((a,b)=> b.clearDate.localeCompare(a.clearDate));
+  return live[0] || null;
+}
+function openJobs(){
+  return Store.state.paddockEvents
+    .filter(e => e.type === 'Job to do' && e.status !== 'done')
+    .sort((a,b)=> (a.dueDate||'9999').localeCompare(b.dueDate||'9999'));
+}
+function allActiveWithholdings(){
+  return Store.getPaddocks().map(p => ({ paddock:p, wh:activeWithholding(p.id) })).filter(x => x.wh);
+}
+
+/* ================= MAP & PADDOCKS =================
+   Local-first: paddock outlines live in the same Store as everything else, so
+   the map works with no signal once tiles are cached by the browser. Esri's
+   free imagery needs no key — swap the tile URL for a licensed provider if
+   this ever ships to other farms. */
+let map = null, paddockLayer = null, drawing = false, drawPoints = [], drawShapes = null, locateMarker = null;
+
+function initMap(){
+  if (map || typeof L === 'undefined') return;
+  map = L.map('mapCanvas', { zoomControl:false, attributionControl:true });
+  L.control.zoom({ position:'topright' }).addTo(map);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19, attribution: 'Imagery &copy; Esri'
+  }).addTo(map);
+  paddockLayer = L.layerGroup().addTo(map);
+  drawShapes = L.layerGroup().addTo(map);
+  map.on('click', onMapClick);
+  const saved = Store.state.settings.mapView;
+  if (saved) map.setView([saved.lat, saved.lng], saved.zoom);
+  else map.setView([-33.5, 148.5], 6); // rough NSW default until there's a paddock
+  map.on('moveend', () => {
+    const c = map.getCenter();
+    Store.state.settings.mapView = { lat:c.lat, lng:c.lng, zoom:map.getZoom() };
+    Store.save();
+  });
+  // Labels show/hide by zoom, so redraw them when the zoom changes.
+  map.on('zoomend', () => { renderPaddocks(false); renderFeatures(); });
+  renderPaddocks(!saved);
+  renderFeatures();
+}
+function showMap(){
+  initMap();
+  if (map) setTimeout(()=> map.invalidateSize(), 60); // container was hidden until now
+}
+
+// Geodesic polygon area, so hectares are right at this latitude.
+function polygonAreaHa(points){
+  if (points.length < 3) return 0;
+  const R = 6378137, rad = d => d * Math.PI / 180;
+  let total = 0;
+  for (let i = 0; i < points.length; i++){
+    const a = points[i], b = points[(i+1) % points.length];
+    total += rad(b.lng - a.lng) * (2 + Math.sin(rad(a.lat)) + Math.sin(rad(b.lat)));
+  }
+  return Math.abs(total * R * R / 2) / 10000;
+}
+
+function renderPaddocks(fitBounds){
+  if (!paddockLayer) return;
+  paddockLayer.clearLayers();
+  const all = Store.getPaddocks();
+  all.forEach(p => {
+    const poly = L.polygon(p.points.map(pt => [pt.lat, pt.lng]), {
+      color:'#ffffff', weight:2, opacity:.9, fillColor:'#ffffff', fillOpacity:.18
+    }).addTo(paddockLayer);
+    poly.on('click', (e) => { L.DomEvent.stop(e); openPaddockDetail(p.id); });
+    const mobs = Store.mobsInPaddock(p.id);
+    const head = mobs.reduce((s,m)=> s + mobRemaining(m.id), 0);
+    // Head count only once you're zoomed in enough for it to be readable.
+    const showHead = head && map.getZoom() >= 14;
+    const wh = activeWithholding(p.id);
+    const free = paddockDaysFree(p.id);
+    const sub = showHead ? `🐄 ${head} hd` : (map.getZoom() >= 14 && free != null ? `spelled ${free}d` : '');
+    L.marker(poly.getBounds().getCenter(), {
+      icon: L.divIcon({
+        className:'paddock-label',
+        html: `<span class="tag">${wh?'⚠️ ':''}${esc(p.name)}${sub ? `<span class="hd">${sub}</span>` : ''}</span>`,
+        iconSize:[0,0]
+      })
+    }).addTo(paddockLayer).on('click', () => openPaddockDetail(p.id));
+  });
+  if (fitBounds && all.length){
+    const bounds = L.latLngBounds([]);
+    all.forEach(p => p.points.forEach(pt => bounds.extend([pt.lat, pt.lng])));
+    if (bounds.isValid()) map.fitBounds(bounds, {padding:[30,30]});
+  }
+}
+
+function setMapHint(text){
+  const hint = document.getElementById('mapHint');
+  hint.style.display = text ? 'block' : 'none';
+  hint.textContent = text || '';
+}
+function toggleDrawPaddock(){
+  if (!map){ toast('Map still loading'); return; }
+  if (pinMode) togglePinMode(); // the two modes would otherwise both eat the tap
+  drawing = true; drawPoints = []; drawShapes.clearLayers();
+  document.getElementById('btnDrawPaddock').style.display = 'none';
+  document.getElementById('btnFinishPaddock').style.display = 'inline-flex';
+  document.getElementById('btnCancelPaddock').style.display = 'inline-flex';
+  setMapHint('Tap the corners of the paddock, then Finish.');
+}
+function cancelDrawPaddock(){
+  drawing = false; drawPoints = []; if (drawShapes) drawShapes.clearLayers();
+  document.getElementById('btnDrawPaddock').style.display = 'inline-flex';
+  document.getElementById('btnFinishPaddock').style.display = 'none';
+  document.getElementById('btnCancelPaddock').style.display = 'none';
+  setMapHint('');
+}
+function onMapClick(e){
+  if (pinMode){ placePin(e.latlng); return; }
+  if (!drawing) return;
+  drawPoints.push({ lat:e.latlng.lat, lng:e.latlng.lng });
+  redrawDraft();
+}
+
+/* ---- map pins: troughs, gates, tanks, yards ---- */
+const FEATURE_TYPES = {
+  'Trough': '💧', 'Water tank': '🛢️', 'Gate': '🚪', 'Yards': '🐄',
+  'Pump': '⚙️', 'Shed': '🏠', 'Other': '📍'
+};
+let pinMode = false, featureLayer = null;
+function togglePinMode(){
+  if (!map){ toast('Map still loading'); return; }
+  if (drawing) cancelDrawPaddock();
+  pinMode = !pinMode;
+  document.getElementById('btnDropPin').classList.toggle('active', pinMode);
+  setMapHint(pinMode ? 'Tap where the trough, gate or tank is.' : '');
+}
+function placePin(latlng){
+  pinMode = false;
+  document.getElementById('btnDropPin').classList.remove('active');
+  setMapHint('');
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h2>New pin</h2>
+    <form onsubmit="return submitFeatureForm(event)">
+      <label>What is it?</label>
+      <select name="type">${Object.keys(FEATURE_TYPES).map(t=>`<option>${FEATURE_TYPES[t]} ${t}</option>`).join('')}</select>
+      <label>Name</label>
+      <input name="name" required placeholder="e.g. Top trough" autofocus>
+      <label>Notes</label><textarea name="notes"></textarea>
+      <button class="btn btn-primary" type="submit">Save pin</button>
+    </form>
+  `);
+  pendingPin = { lat: latlng.lat, lng: latlng.lng };
+}
+let pendingPin = null;
+function submitFeatureForm(ev){
+  ev.preventDefault(); const f = ev.target;
+  Store.addFeature({
+    name: f.name.value.trim(),
+    type: f.type.value.replace(/^\S+\s/, ''), // strip the emoji off the label
+    notes: f.notes.value.trim(),
+    lat: pendingPin.lat, lng: pendingPin.lng
+  });
+  pendingPin = null;
+  closeModal(); renderFeatures(); toast('Pin saved');
+  return false;
+}
+function renderFeatures(){
+  if (!map) return;
+  if (!featureLayer) featureLayer = L.layerGroup().addTo(map);
+  featureLayer.clearLayers();
+  Store.getFeatures().forEach(ft => {
+    // Pin names only at close zoom, so a paddock full of troughs isn't a wall of text.
+    const showName = map.getZoom() >= 15;
+    L.marker([ft.lat, ft.lng], {
+      icon: L.divIcon({
+        className: 'paddock-label',
+        html: `<div class="icon">${FEATURE_TYPES[ft.type]||'📍'}</div>${showName ? `<span class="tag" style="font-weight:400;">${esc(ft.name)}</span>` : ''}`,
+        iconSize: [0,0]
+      })
+    }).addTo(featureLayer).on('click', () => openFeatureDetail(ft.id));
+  });
+}
+function openFeatureDetail(id){
+  const ft = Store.getFeature(id);
+  if (!ft) return;
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h2>${FEATURE_TYPES[ft.type]||'📍'} ${esc(ft.name)}</h2>
+    <p class="helptext">${esc(ft.type)}</p>
+    ${ft.notes ? `<p class="helptext">${esc(ft.notes)}</p>` : ''}
+    <div class="row-actions">
+      <button class="btn btn-secondary" onclick="renameFeature('${id}')">Rename</button>
+      <button class="btn btn-danger" onclick="deleteFeatureConfirm('${id}')">Delete</button>
+    </div>
+  `);
+}
+function renameFeature(id){
+  const ft = Store.getFeature(id);
+  const name = prompt('Pin name', ft.name);
+  if (name && name.trim()){ Store.updateFeature(id, {name:name.trim()}); renderFeatures(); closeModal(); toast('Renamed'); }
+}
+function deleteFeatureConfirm(id){
+  if (!confirm('Delete this pin?')) return;
+  Store.deleteFeature(id); closeModal(); renderFeatures(); toast('Pin deleted');
+}
+function redrawDraft(){
+  drawShapes.clearLayers();
+  drawPoints.forEach((pt, i) => {
+    L.circleMarker([pt.lat, pt.lng], { radius:6, color:'#fff', weight:2, fillColor:'#3f6b34', fillOpacity:1 })
+      .addTo(drawShapes)
+      .on('click', (e) => { L.DomEvent.stop(e); drawPoints.splice(i,1); redrawDraft(); });
+  });
+  if (drawPoints.length >= 2){
+    L.polyline(drawPoints.map(p=>[p.lat,p.lng]).concat(drawPoints.length>2?[[drawPoints[0].lat,drawPoints[0].lng]]:[]),
+      { color:'#fff', weight:2, dashArray:'5,5' }).addTo(drawShapes);
+  }
+  if (drawPoints.length >= 3){
+    setMapHint(`${drawPoints.length} corners · ${polygonAreaHa(drawPoints).toFixed(1)} ha — tap a corner to remove it.`);
+  }
+}
+function finishPaddock(){
+  if (drawPoints.length < 3){ toast('Tap at least 3 corners'); return; }
+  const points = drawPoints.slice();
+  const areaHa = polygonAreaHa(points);
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h2>Name this paddock</h2>
+    <form onsubmit="return submitPaddockForm(event)">
+      <label>Paddock name</label>
+      <input name="name" required placeholder="e.g. Hay Paddock" autofocus>
+      <p class="helptext" style="margin-top:6px;">${areaHa.toFixed(1)} hectares (${(areaHa*2.471).toFixed(1)} acres)</p>
+      <label>Notes</label><textarea name="notes"></textarea>
+      <button class="btn btn-primary" type="submit">Save paddock</button>
+    </form>
+  `);
+  pendingPaddock = { points, areaHa };
+}
+let pendingPaddock = null;
+function submitPaddockForm(ev){
+  ev.preventDefault(); const f = ev.target;
+  Store.addPaddock({ name: f.name.value.trim(), notes: f.notes.value.trim(), points: pendingPaddock.points, areaHa: pendingPaddock.areaHa });
+  pendingPaddock = null;
+  closeModal(); cancelDrawPaddock(); renderPaddocks(false); toast('Paddock saved');
+  return false;
+}
+function openPaddockDetail(id){
+  const p = Store.getPaddock(id);
+  if (!p) return;
+  const mobs = paddockOccupants(id);
+  const free = paddockDaysFree(id);
+  const wh = activeWithholding(id);
+  const history = paddockEvents(id);
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h2>${esc(p.name)}</h2>
+    <p class="helptext">${p.areaHa.toFixed(1)} ha (${(p.areaHa*2.471).toFixed(1)} acres)</p>
+
+    ${wh ? `<div class="card" style="background:var(--danger-light); border-color:var(--danger); margin:12px 0;">
+      <strong style="color:var(--danger);">⚠️ ${esc(wh.type)} withholding</strong>
+      <div class="helptext" style="color:var(--danger);">
+        ${esc(wh.title||wh.type)} applied ${fmtDate(wh.date)} · ${wh.withholdingDays} day period.<br>
+        <strong>Clear on ${fmtDate(wh.clearDate)} — ${wh.daysLeft} day${wh.daysLeft===1?'':'s'} to go.</strong>
+      </div>
+    </div>` : ''}
+
+    <div class="stat-row" style="margin:12px 0;">
+      <div class="stat">
+        <div class="num">${mobs.length ? mobs.reduce((s,m)=>s+mobRemaining(m.id),0) : (free!=null ? free : '—')}</div>
+        <div class="lbl">${mobs.length ? 'head grazing here' : (free!=null ? 'days spelled' : 'never grazed')}</div>
+      </div>
+      <div class="stat">
+        <div class="num">${mobs.length ? (mobDaysInPaddock(mobs[0].id) ?? '—') : 0}</div>
+        <div class="lbl">${mobs.length ? 'days in paddock' : 'mobs here'}</div>
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin:14px 0 6px;">
+      <h3 style="font-size:14px; color:var(--muted); margin:0;">Stock here</h3>
+      <button class="btn btn-secondary" onclick="openMoveIntoPaddock('${id}')">Move stock in</button>
+    </div>
+    ${mobs.length
+      ? mobs.map(m => `<div class="list-item">
+          <div class="main" onclick="closeModal(); openMobDetail('${m.id}')">
+            <div class="title">${esc(m.name)}</div>
+            <div class="meta">${mobRemaining(m.id)} hd${mobDaysInPaddock(m.id)!=null?` · ${mobDaysInPaddock(m.id)} days here`:''}</div>
+          </div>
+          <button class="btn btn-ghost" style="padding:5px 10px; font-size:12.5px;" onclick="openMoveMobForm('${m.id}')">Move out</button>
+        </div>`).join('')
+      : '<div class="empty-state">Empty' + (free!=null ? ` — spelled ${free} days` : '') + '</div>'}
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin:16px 0 6px;">
+      <h3 style="font-size:14px; color:var(--muted); margin:0;">History &amp; jobs</h3>
+      <button class="btn btn-secondary" onclick="openEventForm('${id}')">+ Add</button>
+    </div>
+    ${history.length ? history.map(e => {
+      const clear = e.withholdingDays > 0 ? addDays(e.date, e.withholdingDays) : null;
+      const stillHeld = clear && clear > todayISO();
+      return `<div class="list-item" onclick="toggleEventDone('${e.id}')">
+        <div class="main">
+          <div class="title">${EVENT_TYPES[e.type]?.icon||'📝'} ${esc(e.title || e.type)}${e.status==='done'?' ✓':''}</div>
+          <div class="meta">${fmtDate(e.date)}${e.type==='Job to do' && e.dueDate ? ` · due ${fmtDate(e.dueDate)}` : ''}${clear ? ` · clear ${fmtDate(clear)}${stillHeld?' ⚠️':''}` : ''}</div>
+          ${e.notes?`<div class="meta">${esc(e.notes)}</div>`:''}
+        </div>
+        <button class="btn btn-ghost" style="padding:3px 8px; font-size:12px;" onclick="event.stopPropagation(); deleteEventConfirm('${e.id}','${id}')">✕</button>
+      </div>`;
+    }).join('') : '<div class="empty-state">Nothing recorded yet</div>'}
+
+    <div class="row-actions">
+      <button class="btn btn-secondary" onclick="renamePaddock('${id}')">Rename</button>
+      <button class="btn btn-danger" onclick="deletePaddockConfirm('${id}')">Delete</button>
+    </div>
+  `);
+}
+
+function openEventForm(paddockId){
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h2>Add to paddock history</h2>
+    <form onsubmit="return submitEventForm(event)">
+      <input type="hidden" name="paddockId" value="${paddockId}">
+      <label>What happened / what needs doing</label>
+      <select name="type" onchange="onEventTypeChange(this.form)">
+        ${Object.keys(EVENT_TYPES).map(t=>`<option value="${t}">${EVENT_TYPES[t].icon} ${t}</option>`).join('')}
+      </select>
+      <label>Detail</label>
+      <input name="title" placeholder="e.g. Single super 100kg/ha">
+      <div class="field-row">
+        <div><label>Date</label><input name="date" type="date" value="${todayISO()}" required></div>
+        <div id="whWrap"><label>Withholding (days)</label><input name="withholdingDays" type="number" min="0" value="21"></div>
+      </div>
+      <div id="dueWrap" style="display:none;"><label>Due date (optional)</label><input name="dueDate" type="date"></div>
+      <p class="helptext" id="whHint">Stock must stay out until the withholding period is up — the paddock will warn you until then.</p>
+      <label>Notes</label><textarea name="notes"></textarea>
+      <button class="btn btn-primary" type="submit">Save</button>
+    </form>
+  `);
+  onEventTypeChange(document.querySelector('#modalSheet form'));
+}
+function onEventTypeChange(form){
+  const t = form.type.value;
+  const hasWH = EVENT_TYPES[t] && EVENT_TYPES[t].withholding;
+  const isJob = t === 'Job to do';
+  document.getElementById('whWrap').style.display = hasWH ? 'block' : 'none';
+  document.getElementById('whHint').style.display = hasWH ? 'block' : 'none';
+  document.getElementById('dueWrap').style.display = isJob ? 'block' : 'none';
+  if (!hasWH) form.withholdingDays.value = 0;
+  else if (!Number(form.withholdingDays.value)) form.withholdingDays.value = 21;
+}
+function submitEventForm(ev){
+  ev.preventDefault(); const f = ev.target;
+  Store.state.paddockEvents.push({
+    id: uid('ev'), paddockId: f.paddockId.value, type: f.type.value,
+    title: f.title.value.trim(), date: f.date.value,
+    withholdingDays: Number(f.withholdingDays.value)||0,
+    dueDate: f.dueDate.value || null,
+    status: f.type.value === 'Job to do' ? 'todo' : 'done',
+    notes: f.notes.value.trim()
+  });
+  Store.save();
+  closeModal(); renderPaddocks(false); renderDashboard(); toast('Saved to paddock history');
+  openPaddockDetail(f.paddockId.value);
+  return false;
+}
+function toggleEventDone(id){
+  const e = Store.state.paddockEvents.find(x => x.id === id);
+  if (!e || e.type !== 'Job to do') return;
+  e.status = e.status === 'done' ? 'todo' : 'done';
+  Store.save(); openPaddockDetail(e.paddockId); renderDashboard();
+}
+function deleteEventConfirm(id, paddockId){
+  if (!confirm('Delete this history entry?')) return;
+  Store.state.paddockEvents = Store.state.paddockEvents.filter(x => x.id !== id);
+  Store.save(); renderPaddocks(false); renderDashboard(); openPaddockDetail(paddockId);
+}
+function renamePaddock(id){
+  const p = Store.getPaddock(id);
+  const name = prompt('Paddock name', p.name);
+  if (name && name.trim()){ Store.updatePaddock(id, {name:name.trim()}); renderPaddocks(false); closeModal(); toast('Renamed'); }
+}
+function deletePaddockConfirm(id){
+  if (!confirm('Delete this paddock? Any mob in it stays, but loses its location.')) return;
+  Store.deletePaddock(id); closeModal(); renderPaddocks(false); toast('Paddock deleted');
+}
+function locateMe(){
+  if (!map || !navigator.geolocation){ toast('Location not available'); return; }
+  toast('Finding you…');
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const ll = [pos.coords.latitude, pos.coords.longitude];
+      map.setView(ll, 16);
+      if (locateMarker) map.removeLayer(locateMarker);
+      locateMarker = L.circleMarker(ll, { radius:8, color:'#fff', weight:3, fillColor:'#2f80ed', fillOpacity:1 }).addTo(map);
+    },
+    () => toast('Could not get your location'),
+    { enableHighAccuracy:true, timeout:10000 }
+  );
+}
+
+/* ================= DASHBOARD ================= */
+function renderAttention(){
+  const box = document.getElementById('attentionCard');
+  if (!box) return;
+  const whs = allActiveWithholdings();
+  const jobs = openJobs();
+  const overdue = jobs.filter(j => j.dueDate && j.dueDate < todayISO());
+  if (!whs.length && !jobs.length){ box.innerHTML = ''; return; }
+  box.innerHTML = `<div class="card">
+    <h3>Needs attention</h3>
+    ${whs.map(x => `<div class="list-item" onclick="openPaddockDetail('${x.paddock.id}')">
+      <div class="main">
+        <div class="title" style="color:var(--danger);">⚠️ ${esc(x.paddock.name)} — keep stock out</div>
+        <div class="meta">${esc(x.wh.type)} ${fmtDate(x.wh.date)} · clear ${fmtDate(x.wh.clearDate)}</div>
+      </div>
+      <div class="amt neg">${x.wh.daysLeft}d</div>
+    </div>`).join('')}
+    ${jobs.map(j => {
+      const pad = Store.getPaddock(j.paddockId);
+      const isOverdue = j.dueDate && j.dueDate < todayISO();
+      return `<div class="list-item" onclick="openPaddockDetail('${j.paddockId}')">
+        <div class="main">
+          <div class="title">📋 ${esc(j.title || 'Job')}</div>
+          <div class="meta">${pad?esc(pad.name):''}${j.dueDate?` · due ${fmtDate(j.dueDate)}`:''}</div>
+        </div>
+        ${isOverdue ? '<div class="amt neg">overdue</div>' : ''}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function renderDashboard(){
+  showMap();
+  renderAttention();
+  const onFarm = Store.state.mobs.filter(m => mobRemaining(m.id) > 0);
+  const headOnFarm = onFarm.reduce((s,m)=> s + mobRemaining(m.id), 0);
+  document.getElementById('dashHeadOnFarm').textContent = headOnFarm;
+  document.getElementById('dashMobCount').textContent = onFarm.length;
+
+  const fy = currentFY();
+  const t = farmTotals(fy);
+  const fyLabel = document.getElementById('dashFYLabel');
+  if (fyLabel) fyLabel.textContent = fy.label + ' (1 Jul – 30 Jun)';
+  document.getElementById('dashRevenue').textContent = money(t.totalRevenue);
+  document.getElementById('dashCosts').textContent = money(t.totalCost + t.totalExpenses);
+  const marginEl = document.getElementById('dashMargin');
+  marginEl.textContent = money(t.margin);
+  marginEl.classList.toggle('neg', t.margin < 0);
+
+  const events = [];
+  Store.state.purchases.forEach(p => events.push({date:p.date, text:`Bought ${p.headCount} hd`, amt:-p.totalCost, mobId:p.mobId}));
+  Store.state.sales.forEach(s => events.push({date:s.date, text:`Sold ${s.headCount} hd`, amt:s.totalRevenue, mobId:s.mobId}));
+  Store.state.expenses.forEach(e => events.push({date:e.date, text:e.category, amt:-e.amount, mobId:e.mobId}));
+  events.sort((a,b)=> b.date.localeCompare(a.date));
+  const box = document.getElementById('dashActivity');
+  if (!events.length) { box.innerHTML = '<div class="empty-state">No activity yet — add a purchase, sale or expense to get started.</div>'; return; }
+  box.innerHTML = events.slice(0,8).map(e => {
+    const mob = e.mobId ? Store.getMob(e.mobId) : null;
+    return `<div class="list-item">
+      <div class="main"><div class="title">${esc(e.text)}</div><div class="meta">${fmtDate(e.date)}${mob ? ' · ' + esc(mob.name) : ''}</div></div>
+      <div class="amt ${e.amt<0?'neg':'pos'}">${money(e.amt)}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ================= MOBS ================= */
+function renderMobsList(){
+  const box = document.getElementById('mobsList');
+  const mobs = Store.getMobs();
+  if (!mobs.length){
+    box.innerHTML = `<div class="card"><div class="empty-state">
+      No mobs yet.<br><br>A "mob" is a group of cattle you track together — what you bought, what it cost, which paddock it's in.
+    </div><button class="btn btn-primary" onclick="openMobForm()">+ Add your first mob</button></div>`;
+    return;
+  }
+  box.innerHTML = `<div class="card">` + mobs.map(m => {
+    const f = mobFinancials(m.id);
+    return `<div class="list-item" onclick="openMobDetail('${m.id}')">
+      <div class="main">
+        <div class="title">${esc(m.name)} ${mobStatusPill(m)}</div>
+        <div class="meta">${esc(m.species||'')} · ${mobHeadSummary(m.id)}</div>
+      </div>
+      <div class="amt ${f.margin<0?'neg':'pos'}">${money(f.margin)}</div>
+    </div>`;
+  }).join('') + `</div>`;
+}
+
+function openMobForm(existing){
+  const m = existing || {};
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h2>${existing ? 'Edit mob' : 'New mob'}</h2>
+    <form onsubmit="return submitMobForm(event, ${existing ? `'${existing.id}'` : 'null'})">
+      <label>Mob name</label>
+      <input name="name" required placeholder="e.g. Angus steers - north block" value="${esc(m.name||'')}">
+      <div class="field-row">
+        <div><label>Species</label>
+          <select name="species">
+            ${['Cattle','Sheep','Other'].map(s => `<option ${m.species===s?'selected':''}>${s}</option>`).join('')}
+          </select>
+        </div>
+        <div><label>Starting head</label><input name="headCount" type="number" min="0" value="${m.headCount||0}"></div>
+      </div>
+      <div class="field-row">
+        <div><label>Source</label>
+          <select name="sourceType">
+            <option value="purchased" ${m.sourceType==='purchased'?'selected':''}>Purchased</option>
+            <option value="home-bred" ${m.sourceType==='home-bred'?'selected':''}>Home-bred</option>
+          </select>
+        </div>
+      </div>
+      <label>Paddock</label>
+      <select name="paddockId">
+        <option value="">Not set</option>
+        ${Store.getPaddocks().map(p => `<option value="${p.id}" ${m.paddockId===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}
+      </select>
+      <p class="helptext" style="margin:4px 0 0;">Starting head is for stock already on hand (home-bred, or a mob you're tallying by hand). Leave it at 0 if you're about to log a purchase for this mob — purchases add head, sales take them off.</p>
+      <label>Acquired date</label>
+      <input name="acquiredDate" type="date" value="${m.acquiredDate||todayISO()}">
+      <label>Notes</label>
+      <textarea name="notes">${esc(m.notes||'')}</textarea>
+      <button class="btn btn-primary" type="submit">Save mob</button>
+      ${existing ? `<button type="button" class="btn btn-danger btn-block" style="margin-top:10px;" onclick="deleteMobConfirm('${existing.id}')">Delete mob</button>` : ''}
+    </form>
+  `);
+}
+function submitMobForm(ev, id){
+  ev.preventDefault();
+  const f = ev.target;
+  const data = {
+    name: f.name.value.trim(), species: f.species.value, headCount: Number(f.headCount.value)||0,
+    sourceType: f.sourceType.value, acquiredDate: f.acquiredDate.value,
+    paddockId: f.paddockId ? (f.paddockId.value || null) : null,
+    notes: f.notes.value.trim()
+  };
+  if (id) Store.updateMob(id, data); else Store.addMob(data);
+  closeModal(); toast('Mob saved');
+  if (map) renderPaddocks(false); // head counts on the map labels may have moved
+  if (id && currentView === 'mobdetail') openMobDetail(id); else renderMobsList();
+  return false;
+}
+function deleteMobConfirm(id){
+  if (!confirm('Delete this mob and all its purchases, sales, expenses and weights linked to it?')) return;
+  Store.deleteMob(id); closeModal(); toast('Mob deleted'); showView('mobs');
+}
+
+/* Where you actually think about moving cattle is the map, so stock is
+   reachable from there — not buried three taps into the Mobs tab. */
+function openStockSheet(){
+  const mobs = Store.getMobs().filter(m => mobRemaining(m.id) > 0);
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h2>Stock on farm</h2>
+    ${mobs.length ? mobs.map(m => {
+      const pad = m.paddockId ? Store.getPaddock(m.paddockId) : null;
+      const days = mobDaysInPaddock(m.id);
+      return `<div class="list-item">
+        <div class="main" onclick="closeModal(); openMobDetail('${m.id}')">
+          <div class="title">${esc(m.name)}</div>
+          <div class="meta">${mobRemaining(m.id)} hd · ${pad ? esc(pad.name) + (days!=null?`, ${days}d`:'') : 'no paddock set'}</div>
+        </div>
+        <button class="btn btn-secondary" style="padding:6px 12px; font-size:13px;" onclick="openMoveMobForm('${m.id}')">Move</button>
+      </div>`;
+    }).join('') : `<div class="empty-state">No mobs yet — add one to start moving cattle around.</div>`}
+    <button class="btn btn-primary" onclick="closeModal(); openMobForm()">+ New mob</button>
+  `);
+}
+
+/* Bringing stock INTO a paddock you're looking at, rather than starting from the mob. */
+function openMoveIntoPaddock(paddockId){
+  const pad = Store.getPaddock(paddockId);
+  const mobs = Store.getMobs().filter(m => mobRemaining(m.id) > 0 && m.paddockId !== paddockId);
+  if (!Store.getMobs().length){
+    if (confirm('You have no mobs yet. Add one now?')) { closeModal(); openMobForm(); }
+    return;
+  }
+  if (!mobs.length){ toast('Every mob is already in this paddock'); return; }
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h2>Move into ${esc(pad.name)}</h2>
+    <p class="helptext">Which mob?</p>
+    ${mobs.map(m => {
+      const from = m.paddockId ? Store.getPaddock(m.paddockId) : null;
+      return `<div class="list-item" onclick="confirmMove('${m.id}','${paddockId}')">
+        <div class="main">
+          <div class="title">${esc(m.name)}</div>
+          <div class="meta">${mobRemaining(m.id)} hd · currently ${from ? esc(from.name) : 'no paddock'}</div>
+        </div>
+        <div class="amt">→</div>
+      </div>`;
+    }).join('')}
+  `);
+}
+
+/* Destination not known yet (came from the mob, not the paddock): pick one,
+   then straight to the single confirm. No form, no inline warnings. */
+function openMoveMobForm(mobId){
+  const mob = Store.getMob(mobId);
+  const pads = Store.getPaddocks().filter(p => p.id !== mob.paddockId);
+  if (!Store.getPaddocks().length){
+    alert('Draw a paddock on the map first — tap ✏️ Paddock, tap the corners, then Finish.');
+    return;
+  }
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h2>Move ${esc(mob.name)}</h2>
+    <p class="helptext">Move to which paddock?</p>
+    ${pads.map(p => {
+      const wh = activeWithholding(p.id);
+      const free = paddockDaysFree(p.id);
+      const occ = paddockOccupants(p.id).reduce((s,m)=>s+mobRemaining(m.id),0);
+      const note = wh ? `⚠️ withholding, ${wh.daysLeft}d left` : (occ ? `${occ} hd already there` : (free!=null ? `spelled ${free} days` : `${p.areaHa.toFixed(0)} ha`));
+      return `<div class="list-item" onclick="confirmMove('${mobId}','${p.id}')">
+        <div class="main">
+          <div class="title">${esc(p.name)}</div>
+          <div class="meta"${wh?' style="color:var(--danger);"':''}>${note}</div>
+        </div>
+        <div class="amt">→</div>
+      </div>`;
+    }).join('')}
+    <div class="list-item" onclick="confirmMove('${mobId}','')">
+      <div class="main"><div class="title">Off farm</div><div class="meta">sold, agisted or trucked out</div></div>
+      <div class="amt">→</div>
+    </div>
+  `);
+}
+
+/* The one and only safeguard: a single yes/no that also carries the
+   withholding warning, so there's nothing else to click through. */
+function confirmMove(mobId, paddockId){
+  const mob = Store.getMob(mobId);
+  const pad = paddockId ? Store.getPaddock(paddockId) : null;
+  const head = mobRemaining(mobId);
+  const wh = paddockId ? activeWithholding(paddockId) : null;
+
+  let msg = `Move ${mob.name} (${head} hd) into ${pad ? pad.name : 'off farm'}?`;
+  if (wh){
+    msg += `\n\n⚠️ WITHHOLDING — ${wh.type.toLowerCase()}`
+        + (wh.title ? ` (${wh.title})` : '')
+        + ` applied ${fmtDate(wh.date)}.`
+        + `\nStock should stay out until ${fmtDate(wh.clearDate)} — ${wh.daysLeft} day${wh.daysLeft===1?'':'s'} to go.`;
+  }
+  if (!confirm(msg)) return;
+
+  moveMob(mobId, paddockId || null, todayISO(), '');
+  closeModal();
+  toast(pad ? `Moved to ${pad.name}` : 'Moved off farm');
+  if (map) renderPaddocks(false);
+  if (currentView === 'mobdetail') renderMobDetail(mobId);
+  else renderView(currentView);
+}
+
+function openMobDetail(id){
+  currentMobId = id;
+  showView('mobdetail');
+  renderMobDetail(id);
+}
+function renderMobDetail(id){
+  const m = Store.getMob(id);
+  if (!m){ showView('mobs'); return; }
+  const f = mobFinancials(id);
+  const body = document.getElementById('mobDetailBody');
+  body.innerHTML = `
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div>
+          <h2 style="margin:0;">${esc(m.name)}</h2>
+          <div class="meta" style="color:var(--muted); margin-top:2px;">${esc(m.species||'')} · ${mobHeadSummary(m.id)} · ${mobStatusPill(m)}</div>
+        </div>
+        <button class="icon-btn" style="background:var(--primary-light); color:var(--primary-dark);" onclick="openMobForm(Store.getMob('${m.id}'))">✎</button>
+      </div>
+      <div class="stat-row" style="margin-top:12px;">
+        <div class="stat"><div class="num">${money(f.totalCost)}</div><div class="lbl">purchase cost</div></div>
+        <div class="stat"><div class="num">${money(f.totalExpenses)}</div><div class="lbl">expenses</div></div>
+      </div>
+      <div class="stat-row" style="margin-top:10px;">
+        <div class="stat"><div class="num">${money(f.totalRevenue)}</div><div class="lbl">sale revenue</div></div>
+        <div class="stat"><div class="num ${f.margin<0?'neg':''}">${money(f.margin)}</div><div class="lbl">margin</div></div>
+      </div>
+      ${f.weightGainKg!=null ? `<div class="stat-row" style="margin-top:10px;">
+        <div class="stat"><div class="num">${f.weightGainKg.toFixed(1)} kg</div><div class="lbl">avg liveweight gain / hd</div></div>
+        <div class="stat"><div class="num">${f.costPerKgGained!=null ? money(f.costPerKgGained) : '—'}</div><div class="lbl">cost / kg gained</div></div>
+      </div>` : ''}
+    </div>
+
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0;">Paddock</h3>
+        <button class="btn btn-secondary" onclick="openMoveMobForm('${id}')">Move mob</button>
+      </div>
+      ${(() => {
+        const pad = m.paddockId ? Store.getPaddock(m.paddockId) : null;
+        const days = mobDaysInPaddock(id);
+        if (!pad) return '<div class="empty-state">Not in a paddock — tap Move mob</div>';
+        const wh = activeWithholding(pad.id);
+        return `<div class="list-item" onclick="openPaddockDetail('${pad.id}')">
+          <div class="main">
+            <div class="title">${esc(pad.name)}</div>
+            <div class="meta">${days!=null ? `${days} day${days===1?'':'s'} in this paddock` : 'no arrival date recorded'} · ${pad.areaHa.toFixed(0)} ha</div>
+            ${wh ? `<div class="meta" style="color:var(--danger);">⚠️ ${esc(wh.type)} withholding — clear ${fmtDate(wh.clearDate)}</div>` : ''}
+          </div>
+        </div>`;
+      })()}
+      ${(() => {
+        const moves = mobMovements(id).slice().reverse();
+        if (!moves.length) return '';
+        return `<div class="helptext" style="margin-top:8px;">Grazing history</div>` + moves.map(mv => {
+          const to = mv.toPaddockId ? Store.getPaddock(mv.toPaddockId) : null;
+          const from = mv.fromPaddockId ? Store.getPaddock(mv.fromPaddockId) : null;
+          return `<div class="meta" style="padding:4px 0; color:var(--muted); font-size:12.5px;">
+            ${fmtDate(mv.date)} — ${from?esc(from.name):'off farm'} → ${to?esc(to.name):'off farm'}
+          </div>`;
+        }).join('');
+      })()}
+    </div>
+
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0;">Purchases</h3>
+        <button class="btn btn-secondary" onclick="openPurchaseForm(null, '${id}')">+ Add</button>
+      </div>
+      ${renderMiniList(f.purchases, p => `${p.headCount} hd @ ${fmtDate(p.date)}`, p => p.totalCost, 'purchases')}
+    </div>
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0;">Sales</h3>
+        <button class="btn btn-secondary" onclick="openSaleForm(null, '${id}')">+ Add</button>
+      </div>
+      ${renderMiniList(f.sales, s => `${s.headCount} hd @ ${fmtDate(s.date)}`, s => s.totalRevenue, 'sales')}
+    </div>
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0;">Expenses</h3>
+        <button class="btn btn-secondary" onclick="openExpenseForm('${id}')">+ Add</button>
+      </div>
+      ${renderMiniList(f.expenses, e => `${e.category} · ${fmtDate(e.date)}`, e => -e.amount, 'expenses')}
+    </div>
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0;">Weight checkpoints</h3>
+        <button class="btn btn-secondary" onclick="openWeightForm('${id}')">+ Add</button>
+      </div>
+      ${renderMiniList(f.weights, w => fmtDate(w.date), w => w.avgWeightKg + ' kg', 'weights', true)}
+    </div>
+  `;
+}
+function renderMiniList(records, titleFn, amtFn, kind, plain){
+  if (!records.length) return '<div class="empty-state">None yet</div>';
+  return records.map(r => `
+    <div class="list-item" onclick="deleteRecordConfirm('${kind}','${r.id}')">
+      <div class="main"><div class="title">${esc(titleFn(r))}</div>${r.notes?`<div class="meta">${esc(r.notes)}</div>`:''}${attachmentChip(kind, r)}</div>
+      <div class="amt ${!plain && amtFn(r)<0 ? 'neg':(!plain?'pos':'')}">${plain ? amtFn(r) : money(amtFn(r))}</div>
+    </div>`).join('');
+}
+function deleteRecordConfirm(kind, id){
+  if (!confirm('Delete this record?')) return;
+  Store.deleteRecord(kind, id);
+  toast('Deleted');
+  renderMobDetail(currentMobId);
+}
+
+/* ---- purchase / sale / expense / weight forms ---- */
+function mobOptions(selectedId){
+  return Store.getMobs().map(m => `<option value="${m.id}" ${m.id===selectedId?'selected':''}>${esc(m.name)}</option>`).join('');
+}
+function openPurchaseForm(prefill, mobId){
+  const p = prefill || {};
+  const needsMobPicker = !mobId;
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h2>Add purchase</h2>
+    <form onsubmit="return submitPurchaseForm(event)">
+      ${needsMobPicker ? `<label>Mob</label><select name="mobId">${mobOptions(p.mobId)}</select>` : `<input type="hidden" name="mobId" value="${mobId}">`}
+      <div class="field-row">
+        <div><label>Date</label><input name="date" type="date" value="${p.date||todayISO()}" required></div>
+        <div><label>Head count</label><input name="headCount" type="number" min="0" value="${p.headCount||''}" required></div>
+      </div>
+      <div class="field-row">
+        <div><label>Avg weight (kg)</label><input name="avgWeightKg" type="number" step="0.1" value="${p.avgWeightKg||''}"></div>
+        <div><label>Price unit</label>
+          <select name="priceUnit"><option value="hd" ${p.priceUnit==='hd'?'selected':''}>$/hd</option><option value="kg" ${p.priceUnit==='kg'?'selected':''}>$/kg</option></select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div><label>Price per unit</label><input name="pricePerUnit" type="number" step="0.01" value="${p.pricePerUnit||''}"></div>
+        <div><label>Total cost ($)</label><input name="totalCost" type="number" step="0.01" value="${p.totalCost||''}"></div>
+      </div>
+      <label>Vendor / saleyard</label><input name="vendor" value="${esc(p.vendor||'')}">
+      <label>Notes</label><textarea name="notes">${esc(p.notes||'')}</textarea>
+      ${attachmentFieldHtml()}
+      <button class="btn btn-primary" type="submit">Save purchase</button>
+    </form>
+  `);
+  wireAutoTotal();
+}
+function wireAutoTotal(){
+  const form = document.querySelector('#modalSheet form');
+  if (!form || !form.headCount) return;
+  const recalc = () => {
+    if (form.totalCost.dataset.touched) return;
+    const hd = Number(form.headCount.value)||0, price = Number(form.pricePerUnit.value)||0;
+    const wt = form.avgWeightKg ? Number(form.avgWeightKg.value)||0 : 0;
+    const unit = form.priceUnit ? form.priceUnit.value : 'hd';
+    const total = unit === 'kg' ? hd*wt*price : hd*price;
+    if (total) form.totalCost.value = Math.round(total*100)/100;
+  };
+  ['headCount','pricePerUnit','avgWeightKg','priceUnit'].forEach(n => form[n] && form[n].addEventListener('input', recalc));
+  form.totalCost.addEventListener('input', ()=> form.totalCost.dataset.touched = '1');
+}
+function submitPurchaseForm(ev){
+  ev.preventDefault(); const f = ev.target;
+  Store.addPurchase({
+    mobId: f.mobId.value, date: f.date.value, headCount: Number(f.headCount.value)||0,
+    avgWeightKg: Number(f.avgWeightKg.value)||0, priceUnit: f.priceUnit.value,
+    pricePerUnit: Number(f.pricePerUnit.value)||0, totalCost: Number(f.totalCost.value)||0,
+    vendor: f.vendor.value.trim(), notes: f.notes.value.trim(), attachment: pendingAttachment
+  });
+  closeModal(); toast('Purchase added');
+  if (currentView === 'mobdetail') renderMobDetail(currentMobId);
+  return false;
+}
+function openSaleForm(prefill, mobId){
+  const s = prefill || {};
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h2>Add sale</h2>
+    <form onsubmit="return submitSaleForm(event)">
+      <input type="hidden" name="mobId" value="${mobId}">
+      <div class="field-row">
+        <div><label>Date</label><input name="date" type="date" value="${todayISO()}" required></div>
+        <div><label>Head sold</label><input name="headCount" type="number" min="0" max="${mobRemaining(mobId)}" value="${mobRemaining(mobId)}" required></div>
+      </div>
+      <p class="helptext" style="margin:2px 0 0;">${mobRemaining(mobId)} head currently in this mob — sell any part of it, the rest stays on farm.</p>
+      <div class="field-row">
+        <div><label>Avg weight (kg)</label><input name="avgWeightKg" type="number" step="0.1"></div>
+        <div><label>Price unit</label>
+          <select name="priceUnit"><option value="hd">$/hd</option><option value="kg">$/kg</option></select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div><label>Price per unit</label><input name="pricePerUnit" type="number" step="0.01"></div>
+        <div><label>Total revenue ($)</label><input name="totalRevenue" type="number" step="0.01"></div>
+      </div>
+      <label>Buyer</label><input name="buyer">
+      <label>Notes</label><textarea name="notes"></textarea>
+      ${attachmentFieldHtml()}
+      <button class="btn btn-primary" type="submit">Save sale</button>
+    </form>
+  `);
+  const form = document.querySelector('#modalSheet form');
+  form.totalCost = form.totalRevenue;
+  wireAutoTotal();
+}
+function submitSaleForm(ev){
+  ev.preventDefault(); const f = ev.target;
+  const selling = Number(f.headCount.value)||0;
+  const available = mobRemaining(f.mobId.value);
+  if (selling > available && !confirm(`That's ${selling} head but only ${available} are left in this mob. Record it anyway?`)) return false;
+  Store.addSale({
+    mobId: f.mobId.value, date: f.date.value, headCount: Number(f.headCount.value)||0,
+    avgWeightKg: Number(f.avgWeightKg.value)||0, priceUnit: f.priceUnit.value,
+    pricePerUnit: Number(f.pricePerUnit.value)||0, totalRevenue: Number(f.totalRevenue.value)||0,
+    buyer: f.buyer.value.trim(), notes: f.notes.value.trim(), attachment: pendingAttachment
+  });
+  closeModal(); toast('Sale added');
+  if (currentView === 'mobdetail') renderMobDetail(currentMobId);
+  return false;
+}
+const EXPENSE_CATEGORIES = ['Feed','Freight','Vet & animal health','Agistment','Fertiliser','Fuel','Other'];
+function openExpenseForm(mobId){
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h2>Add expense</h2>
+    <form onsubmit="return submitExpenseForm(event)">
+      <label>Mob (optional — leave blank for whole-farm costs)</label>
+      <select name="mobId"><option value="">Whole farm</option>${mobOptions(mobId)}</select>
+      <div class="field-row">
+        <div><label>Date</label><input name="date" type="date" value="${todayISO()}" required></div>
+        <div><label>Amount ($)</label><input name="amount" type="number" step="0.01" required></div>
+      </div>
+      <label>Category</label>
+      <select name="category">${EXPENSE_CATEGORIES.map(c=>`<option>${c}</option>`).join('')}</select>
+      <label>Notes</label><textarea name="notes"></textarea>
+      ${attachmentFieldHtml()}
+      <button class="btn btn-primary" type="submit">Save expense</button>
+    </form>
+  `);
+}
+function submitExpenseForm(ev){
+  ev.preventDefault(); const f = ev.target;
+  Store.addExpense({ mobId: f.mobId.value || null, date: f.date.value, amount: Number(f.amount.value)||0, category: f.category.value, notes: f.notes.value.trim(), attachment: pendingAttachment });
+  closeModal(); toast('Expense added');
+  if (currentView === 'mobdetail') renderMobDetail(currentMobId); else renderExpenses();
+  return false;
+}
+function openWeightForm(mobId){
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h2>Add weight checkpoint</h2>
+    <form onsubmit="return submitWeightForm(event)">
+      <input type="hidden" name="mobId" value="${mobId}">
+      <label>Date</label><input name="date" type="date" value="${todayISO()}" required>
+      <label>Average weight (kg / hd)</label><input name="avgWeightKg" type="number" step="0.1" required>
+      <label>Notes</label><textarea name="notes"></textarea>
+      <button class="btn btn-primary" type="submit">Save</button>
+    </form>
+  `);
+}
+function submitWeightForm(ev){
+  ev.preventDefault(); const f = ev.target;
+  Store.addWeight({ mobId: f.mobId.value, date: f.date.value, avgWeightKg: Number(f.avgWeightKg.value)||0, notes: f.notes.value.trim() });
+  closeModal(); toast('Weight recorded');
+  if (currentView === 'mobdetail') renderMobDetail(currentMobId);
+  return false;
+}
+
+/* ================= EXPENSES (whole-farm view) ================= */
+let expenseFilterCat = 'All';
+function renderExpenseFilterBar(){
+  const bar = document.getElementById('expenseFilter');
+  const cats = ['All', ...EXPENSE_CATEGORIES];
+  bar.innerHTML = cats.map(c => `<button class="${c===expenseFilterCat?'active':''}" onclick="setExpenseFilter('${c}')">${c}</button>`).join('');
+}
+function setExpenseFilter(c){ expenseFilterCat = c; renderExpenses(); }
+function renderExpenses(){
+  renderExpenseFilterBar();
+  const box = document.getElementById('expensesList');
+  let list = Store.state.expenses.slice().sort((a,b)=> b.date.localeCompare(a.date));
+  if (expenseFilterCat !== 'All') list = list.filter(e => e.category === expenseFilterCat);
+  if (!list.length){ box.innerHTML = '<div class="empty-state">No expenses recorded. Tap + to add one.</div>'; return; }
+  box.innerHTML = `<div class="card">` + list.map(e => {
+    const mob = e.mobId ? Store.getMob(e.mobId) : null;
+    return `<div class="list-item" onclick="deleteRecordConfirm('expenses','${e.id}')">
+      <div class="main"><div class="title">${esc(e.category)}</div><div class="meta">${fmtDate(e.date)}${mob?' · '+esc(mob.name):' · Whole farm'}</div>${attachmentChip('expenses', e)}</div>
+      <div class="amt neg">${money(-e.amount)}</div>
+    </div>`;
+  }).join('') + `</div>`;
+}
+
+/* ================= REPORTS ================= */
+function renderReports(){
+  const mobs = Store.getMobs();
+  const table = document.getElementById('reportMobTable');
+  if (!mobs.length){ table.innerHTML = ''; document.getElementById('reportFarmTotals').innerHTML = '<div class="empty-state">Add a mob to see reports.</div>'; return; }
+  table.innerHTML = `<tr><th>Mob</th><th class="num">Cost</th><th class="num">Revenue</th><th class="num">Expenses</th><th class="num">Margin</th><th class="num">$/kg gained</th></tr>` +
+    mobs.map(m => {
+      const f = mobFinancials(m.id);
+      return `<tr>
+        <td>${esc(m.name)}</td>
+        <td class="num">${money(f.totalCost)}</td>
+        <td class="num">${money(f.totalRevenue)}</td>
+        <td class="num">${money(f.totalExpenses)}</td>
+        <td class="num">${money(f.margin)}</td>
+        <td class="num">${f.costPerKgGained!=null ? money(f.costPerKgGained) : '—'}</td>
+      </tr>`;
+    }).join('');
+  const t = farmTotals();
+  document.getElementById('reportFarmTotals').innerHTML = `
+    <div class="stat-row">
+      <div class="stat"><div class="num">${money(t.totalCost)}</div><div class="lbl">total purchases</div></div>
+      <div class="stat"><div class="num">${money(t.totalExpenses)}</div><div class="lbl">total expenses</div></div>
+    </div>
+    <div class="stat-row" style="margin-top:10px;">
+      <div class="stat"><div class="num">${money(t.totalRevenue)}</div><div class="lbl">total revenue</div></div>
+      <div class="stat"><div class="num ${t.margin<0?'neg':''}">${money(t.margin)}</div><div class="lbl">net margin</div></div>
+    </div>`;
+}
+
+/* ================= SETTINGS ================= */
+function renderSettingsForm(){
+  document.getElementById('settingFarmName').value = Store.state.settings.farmName || '';
+  document.getElementById('settingCurrency').value = Store.state.settings.currency || '$';
+  document.getElementById('syncProject').value = Store.state.settings.syncProject || '';
+  document.getElementById('syncKey').value = Store.state.settings.syncKey || '';
+  document.getElementById('syncFarm').value = Store.state.settings.syncFarm || '';
+  renderSyncStatus();
+  renderStorageGauge();
+}
+// Browsers typically allow ~5 MB per site, so treat that as the ceiling.
+const STORAGE_CEILING_BYTES = 5 * 1024 * 1024;
+function renderStorageGauge(){
+  const box = document.getElementById('storageGauge');
+  if (!box) return;
+  const used = Store.usageBytes();
+  const pct = Math.min(100, Math.round(used / STORAGE_CEILING_BYTES * 100));
+  const attachmentCount = ['purchases','sales','expenses']
+    .reduce((n,k)=> n + Store.state[k].filter(r => r.attachment).length, 0);
+  const warn = pct >= 70;
+  box.innerHTML = `
+    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+      <span>Storage used${attachmentCount ? ` · ${attachmentCount} attachment${attachmentCount===1?'':'s'}` : ''}</span>
+      <strong style="${warn?'color:var(--danger);':''}">${(used/1024/1024).toFixed(1)} MB of ~5 MB</strong>
+    </div>
+    <div style="height:8px; background:var(--border); border-radius:999px; overflow:hidden;">
+      <div style="height:100%; width:${pct}%; background:${warn?'var(--danger)':'var(--primary)'};"></div>
+    </div>
+    ${warn ? '<div style="color:var(--danger); margin-top:6px;">Running low — export a backup and delete some attachments.</div>' : ''}`;
+}
+function saveSettingsForm(){
+  Store.state.settings.farmName = document.getElementById('settingFarmName').value.trim();
+  Store.state.settings.currency = document.getElementById('settingCurrency').value.trim() || '$';
+  Store.save(); refreshHeader(); toast('Settings saved');
+}
+function exportBackup(){
+  const blob = new Blob([JSON.stringify(Store.state, null, 2)], {type:'application/json'});
+  const name = 'field-book-backup-' + todayISO() + '.json';
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name; a.style.display = 'none';
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
+  toast('Backup downloaded');
+}
+document.getElementById('restoreFile').addEventListener('change', function(e){
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(){
+    try {
+      const data = JSON.parse(reader.result);
+      if (!confirm('Restore this backup? This replaces all current data in this browser.')) return;
+      Store.replaceAll(data);
+      toast('Backup restored');
+      refreshHeader(); showView('dashboard');
+    } catch(err){ alert('Could not read that file — is it a Field Book backup?'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+function confirmResetAll(){
+  if (!confirm('Erase ALL data in this Field Book? This cannot be undone. Export a backup first if unsure.')) return;
+  Store.replaceAll(Store.defaultState());
+  toast('All data erased');
+  refreshHeader(); showView('dashboard');
+}
+
+/* ================= SYNC =================
+   Local-first: the browser is always the working copy, so everything keeps
+   working with no signal. The cloud holds one JSON document per farm code,
+   and whichever device saved most recently wins. That's adequate here because
+   one person is never editing on two devices at the same moment — it is NOT a
+   merge, and it would be the wrong model for a team. */
+function syncConfig(){
+  const s = Store.state.settings;
+  return { project: s.syncProject || '', key: s.syncKey || '', farm: s.syncFarm || '' };
+}
+function syncReady(){
+  const c = syncConfig();
+  return !!(c.project && c.key && c.farm);
+}
+function syncDocUrl(){
+  const c = syncConfig();
+  return `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(c.project)}/databases/(default)/documents/fieldbook/${encodeURIComponent(c.farm)}?key=${encodeURIComponent(c.key)}`;
+}
+function saveSyncSettings(){
+  Store.state.settings.syncProject = document.getElementById('syncProject').value.trim();
+  Store.state.settings.syncKey = document.getElementById('syncKey').value.trim();
+  Store.state.settings.syncFarm = document.getElementById('syncFarm').value.trim();
+  Store.save(); renderSyncStatus(); toast('Sync settings saved');
+}
+function renderSyncStatus(){
+  const box = document.getElementById('syncStatus');
+  if (!box) return;
+  const last = Store.state.settings.lastSyncedAt;
+  if (!syncReady()){ box.innerHTML = '<span style="color:var(--muted);">Not set up yet — fill in the three boxes above.</span>'; return; }
+  box.innerHTML = last
+    ? `✓ Last synced ${new Date(last).toLocaleString()}`
+    : 'Set up, but never synced. Tap Sync now.';
+}
+async function syncNow(){
+  if (!syncReady()){ alert('Fill in the project ID, API key and farm code first.'); return; }
+  const box = document.getElementById('syncStatus');
+  if (box) box.textContent = 'Syncing…';
+  try {
+    // 1. what's in the cloud?
+    const res = await fetch(syncDocUrl());
+    let remote = null;
+    if (res.status === 200){
+      const doc = await res.json();
+      const raw = doc.fields && doc.fields.data && doc.fields.data.stringValue;
+      if (raw) remote = JSON.parse(raw);
+    } else if (res.status !== 404){
+      throw new Error('Cloud said ' + res.status + '. Check the project ID, API key, and that Firestore is enabled.');
+    }
+
+    const localTime = (Store.state.meta && Store.state.meta.lastModified) || '';
+    const remoteTime = (remote && remote.meta && remote.meta.lastModified) || '';
+
+    // 2. whoever saved last wins
+    if (remote && remoteTime > localTime){
+      if (!confirm(`The cloud copy is newer (saved ${new Date(remoteTime).toLocaleString()}).\n\nReplace what's on this device with it?`)) {
+        if (box) renderSyncStatus();
+        return;
+      }
+      const keep = { syncProject: Store.state.settings.syncProject, syncKey: Store.state.settings.syncKey, syncFarm: Store.state.settings.syncFarm };
+      Store.replaceAll(remote);
+      Object.assign(Store.state.settings, keep); // don't let a sync wipe our own credentials
+      Store.state.settings.lastSyncedAt = new Date().toISOString();
+      Store.save();
+      refreshHeader(); renderView(currentView);
+      toast('Pulled from cloud');
+    } else {
+      // push ours up
+      const body = { fields: {
+        data: { stringValue: JSON.stringify(Store.state) },
+        updatedAt: { stringValue: new Date().toISOString() }
+      }};
+      const put = await fetch(syncDocUrl(), {
+        method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+      });
+      if (!put.ok) throw new Error('Upload failed (' + put.status + ').');
+      Store.state.settings.lastSyncedAt = new Date().toISOString();
+      Store.save();
+      toast(remote ? 'Pushed to cloud' : 'First copy uploaded');
+    }
+    renderSyncStatus();
+  } catch(err){
+    if (box) box.innerHTML = `<span style="color:var(--danger);">Sync failed: ${esc(err.message)}</span>`;
+    alert('Sync failed.\n\n' + err.message + '\n\nYour data on this device is untouched.');
+  }
+}
+
+/* ================= IMPORT ================= */
+document.getElementById('importFile').addEventListener('change', function(e){
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(){
+    let rows = [];
+    try {
+      if (/<Workbook/i.test(reader.result)) rows = parseSpreadsheetML(reader.result, 'Lots');
+      else rows = parseCSV(reader.result);
+    } catch(err){ alert('Could not read that file: ' + err.message); return; }
+    if (!rows.length){ alert('No rows found in that file.'); return; }
+    showImportDraft(rows);
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+function parseSpreadsheetML(xmlText, sheetName){
+  const sheetMatch = new RegExp('<Worksheet[^>]*ss:Name="' + sheetName + '"[^>]*>([\\s\\S]*?)</Worksheet>', 'i').exec(xmlText);
+  const xml = sheetMatch ? sheetMatch[1] : xmlText;
+  const rowMatches = xml.match(/<Row[^>]*>[\s\S]*?<\/Row>/gi) || [];
+  const rows = rowMatches.map(rowXml => {
+    const cellMatches = rowXml.match(/<Data[^>]*>([\s\S]*?)<\/Data>/gi) || [];
+    return cellMatches.map(c => {
+      const inner = /<Data[^>]*>([\s\S]*?)<\/Data>/i.exec(c)[1];
+      return unescapeXml(inner.trim());
+    });
+  });
+  if (!rows.length) return [];
+  const headers = rows[0];
+  return rows.slice(1).map(cells => {
+    const obj = {};
+    headers.forEach((h,i) => obj[h] = cells[i] !== undefined ? cells[i] : '');
+    return obj;
+  });
+}
+function unescapeXml(s){
+  return s.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&amp;/g,'&');
+}
+function parseCSV(text){
+  const lines = text.replace(/\r/g,'').split('\n').filter(l => l.trim().length);
+  if (!lines.length) return [];
+  const splitLine = (line) => {
+    const out = []; let cur=''; let inQ=false;
+    for (let i=0;i<line.length;i++){
+      const c = line[i];
+      if (c === '"'){ inQ = !inQ; continue; }
+      if (c === ',' && !inQ){ out.push(cur); cur=''; continue; }
+      cur += c;
+    }
+    out.push(cur); return out;
+  };
+  const headers = splitLine(lines[0]).map(h => h.trim());
+  return lines.slice(1).map(line => {
+    const cells = splitLine(line);
+    const obj = {};
+    headers.forEach((h,i) => obj[h] = (cells[i]||'').trim());
+    return obj;
+  });
+}
+
+function findCol(row, names){
+  const keys = Object.keys(row);
+  for (const name of names){
+    const key = keys.find(k => k.trim().toLowerCase() === name.toLowerCase());
+    if (key !== undefined) return row[key];
+  }
+  return '';
+}
+function toNumber(v){ const n = parseFloat(String(v).replace(/[^0-9.\-]/g,'')); return isNaN(n) ? 0 : n; }
+function normalizeDate(v){
+  if (!v) return todayISO();
+  const s = String(v).trim();
+  const m = /^(\d{4}-\d{2}-\d{2})/.exec(s);
+  if (m) return m[1];
+  const d = new Date(s);
+  return isNaN(d) ? todayISO() : localISO(d);
+}
+function mapImportRow(row){
+  const headCount = toNumber(findCol(row, ['Head','Head count','Qty','Quantity']));
+  const weight = toNumber(findCol(row, ['Weight kg','Weight','Avg weight','Weight (kg)']));
+  let total = toNumber(findCol(row, ['Total $','Total','Total cost','Amount']));
+  const priceHd = toNumber(findCol(row, ['$/hd','Price per head','Price/hd']));
+  const priceKg = toNumber(findCol(row, ['$/kg','Price per kg','Price/kg']));
+  let priceUnit = 'hd', pricePerUnit = priceHd;
+  if (!priceHd && priceKg){ priceUnit = 'kg'; pricePerUnit = priceKg; }
+  if (!total && headCount){ total = priceUnit==='kg' ? headCount*weight*pricePerUnit : headCount*pricePerUnit; }
+  const vendor = findCol(row, ['Yard','Vendor','Saleyard','Source']);
+  const sale = findCol(row, ['Sale']);
+  const pen = findCol(row, ['Pen']);
+  const desc = findCol(row, ['Description','Notes','Desc']);
+  const buyerWay = findCol(row, ['Buyer way','Buyer']);
+  const noteParts = [sale && ('Sale: '+sale), pen && ('Pen: '+pen), buyerWay && ('Buyer way: '+buyerWay), desc].filter(Boolean);
+  return {
+    date: normalizeDate(findCol(row, ['Date'])),
+    headCount, avgWeightKg: weight, priceUnit, pricePerUnit, totalCost: Math.round(total*100)/100,
+    vendor, notes: noteParts.join(' · '),
+    suggestedMobName: (pen ? 'Pen ' + pen : (sale || 'Imported purchase'))
+  };
+}
+
+let importDraft = [];
+function showImportDraft(rawRows){
+  importDraft = rawRows.map(mapImportRow).filter(r => r.headCount > 0 || r.totalCost > 0);
+  renderImportDraft();
+}
+function renderImportDraft(){
+  const box = document.getElementById('importReview');
+  if (!importDraft.length){ box.innerHTML = ''; return; }
+  box.innerHTML = `<div class="card">
+    <h3>${importDraft.length} row(s) found — review before saving</h3>
+    ${importDraft.map((r,i) => `
+      <div class="import-row">
+        <strong>${esc(r.suggestedMobName)}</strong> <span class="badge-new">new mob</span>
+        <div class="grid2">
+          <div><label style="margin:6px 0 2px;">Date</label><input value="${r.date}" onchange="importDraft[${i}].date=this.value" type="date"></div>
+          <div><label style="margin:6px 0 2px;">Head</label><input value="${r.headCount}" onchange="importDraft[${i}].headCount=Number(this.value)||0" type="number"></div>
+          <div><label style="margin:6px 0 2px;">Weight kg</label><input value="${r.avgWeightKg}" onchange="importDraft[${i}].avgWeightKg=Number(this.value)||0" type="number" step="0.1"></div>
+          <div><label style="margin:6px 0 2px;">Total cost</label><input value="${r.totalCost}" onchange="importDraft[${i}].totalCost=Number(this.value)||0" type="number" step="0.01"></div>
+        </div>
+        <div class="meta" style="margin-top:6px; color:var(--muted); font-size:12px;">${esc(r.notes||'')}</div>
+        <button class="btn btn-ghost" style="margin-top:8px; padding:6px 10px; font-size:13px;" onclick="removeImportRow(${i})">Remove row</button>
+      </div>
+    `).join('')}
+    <button class="btn btn-primary" onclick="confirmImport()">Import ${importDraft.length} purchase(s) as new mobs</button>
+  </div>`;
+}
+function removeImportRow(i){ importDraft.splice(i,1); renderImportDraft(); }
+function confirmImport(){
+  importDraft.forEach(r => {
+    const mob = Store.addMob({
+      name: r.suggestedMobName, species: 'Cattle', headCount: 0, // head come from the purchase below, not counted twice
+      sourceType: 'purchased', status: 'on-farm', acquiredDate: r.date, notes: 'Imported'
+    });
+    Store.addPurchase({
+      mobId: mob.id, date: r.date, headCount: r.headCount, avgWeightKg: r.avgWeightKg,
+      priceUnit: r.priceUnit, pricePerUnit: r.pricePerUnit, totalCost: r.totalCost,
+      vendor: r.vendor, notes: r.notes
+    });
+  });
+  toast(importDraft.length + ' purchase(s) imported');
+  importDraft = [];
+  document.getElementById('importReview').innerHTML = '';
+  showView('mobs');
+}
+
+/* ================= INIT ================= */
+function init(){
+  Store.load();
+  refreshHeader();
+  showView('dashboard');
+}
+init();
+</script>
+</body>
+</html>
