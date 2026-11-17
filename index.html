@@ -275,7 +275,7 @@ position:absolute; left:10px; bottom:70px; z-index:999; background:rgba(31,42,31
     <div class="mode-bar" id="modeBar" hidden></div>
     <div class="map-side" id="mapSide">
       <button onclick="startDrawPaddock()" title="Draw a paddock" aria-label="Draw a paddock">✏️</button>
-      <button onclick="startPinMode()" title="Mark a trough, gate or tank" aria-label="Add a pin">📍</button>
+      <button onclick="startPinMode()" title="Trough / gate" aria-label="Trough / gate">📍</button><!-- SLIM-13: was "Mark a trough, gate or tank" / "Add a pin" -->
       <button onclick="locateMe()" title="Where am I" aria-label="Where am I">◎</button>
       <button onclick="fitFarm()" title="Show the whole farm" aria-label="Show the whole farm">⤢</button>
     </div>
@@ -284,8 +284,8 @@ position:absolute; left:10px; bottom:70px; z-index:999; background:rgba(31,42,31
     </div>
     <div class="map-empty" id="mapEmpty" hidden></div>
     <div class="map-bottom" id="mapBottom">
-      <button class="pill-btn" onclick="openJobForm()">🚜 Field job</button>
-      <button class="pill-btn" onclick="openStockSheet()">🐄 Livestock</button>
+      <button class="pill-btn" onclick="openJobForm()">🚜 Job</button><!-- SLIM-13: was "Field job" -->
+      <!-- SLIM-2: the "🐄 Livestock" pill is gone; stock is on the Stock tab and by tapping a paddock -->
     </div>
     <button class="note-fab" id="noteFab" onclick="openNoteForm()" aria-label="Add a note">✎<span>Note</span></button>
   </section>
@@ -301,7 +301,7 @@ position:absolute; left:10px; bottom:70px; z-index:999; background:rgba(31,42,31
   <section class="view" id="view-import"><div class="page">
     <div class="card">
       <h3>Bring in purchase records</h3>
-      <p class="helptext">Import a spreadsheet of livestock purchases &mdash; a Penside / Track n Trade "Export Excel" file, or a plain CSV with columns like date, head, weight, price and total. Nothing is saved until you check each row below.</p>
+      <p class="helptext"><!-- SLIM-13: livestock → stock -->Import a spreadsheet of stock purchases &mdash; a Penside / Track n Trade "Export Excel" file, or a plain CSV with columns like date, head, weight, price and total. Nothing is saved until you check each row below.</p>
       <div class="import-drop">
         <div style="font-size:28px;">📄</div>
         <div style="margin:8px 0;">Choose a .xls or .csv export</div>
@@ -331,8 +331,9 @@ position:absolute; left:10px; bottom:70px; z-index:999; background:rgba(31,42,31
       </div>
       <input type="file" id="restoreFile" accept="application/json,.json" hidden>
     </div>
-    <div class="card">
-      <h3>Sync between devices</h3>
+    <!-- SLIM-11: sync settings folded behind one row that opens -->
+    <details class="card" id="syncCard">
+      <summary class="sec-h" style="cursor:pointer; margin:0;">Sync between devices</summary>
       <p class="helptext">Keeps your phone and laptop showing the same records. Paste the two values from your Firebase project, then use the same farm code on every device.</p>
       <label>Firebase project ID</label>
       <input id="syncProject" type="text" placeholder="e.g. field-book-1a2b3" autocomplete="off" autocapitalize="off" spellcheck="false">
@@ -347,7 +348,7 @@ position:absolute; left:10px; bottom:70px; z-index:999; background:rgba(31,42,31
         <button class="btn btn-secondary" onclick="syncPull()">⬇ Get from cloud</button>
       </div>
       <p class="helptext">Finish on one device, <strong>Send</strong>, then <strong>Get</strong> on the other. Whatever you Get replaces what is on that device. Attached invoices stay on the device they were added on.</p>
-    </div>
+    </details>
     <div class="card">
       <h3>Danger zone</h3>
       <button class="btn btn-danger btn-block" onclick="confirmResetAll()">Erase all data</button>
@@ -361,7 +362,7 @@ position:absolute; left:10px; bottom:70px; z-index:999; background:rgba(31,42,31
   <button data-view="map"><span class="ic">🗺️</span>Map</button>
   <button data-view="todo"><span class="ic">☑️</span>To-Do<span class="tab-badge" id="todoBadge" hidden></span></button>
   <button data-view="activity"><span class="ic">📋</span>Activity</button>
-  <button data-view="fields"><span class="ic">🌿</span>Fields</button>
+  <button data-view="fields"><span class="ic">🌿</span>Paddocks</button><!-- SLIM-13: was "Fields" -->
   <button data-view="stock"><span class="ic">🐄</span>Stock</button>
 </nav>
 
@@ -369,15 +370,10 @@ position:absolute; left:10px; bottom:70px; z-index:999; background:rgba(31,42,31
   <div class="drawer" id="drawer">
     <h2 id="drawerFarm">Field Book</h2>
     <div class="sub" id="drawerSub"></div>
-    <div class="grp">Go to</div>
-    <button class="item" onclick="menuGo('map')"><span>🗺️</span>Map</button>
-    <button class="item" onclick="menuGo('stock')"><span>🐄</span>Livestock</button>
-    <button class="item" onclick="menuGo('fields')"><span>🌿</span>Paddocks</button>
-    <div class="grp">Money</div>
+    <!-- SLIM-1: only the four screens with no tab of their own. Map, Livestock and Paddocks (all on the tab bar) and the group headings are gone. -->
     <button class="item" onclick="menuGo('numbers')"><span>📊</span>Numbers</button>
     <button class="item" onclick="menuGo('expenses')"><span>🧾</span>Expenses</button>
     <button class="item" onclick="menuGo('import')"><span>📥</span>Import purchases</button>
-    <div class="grp">Settings</div>
     <button class="item" onclick="menuGo('settings')"><span>⚙️</span>Settings, backup &amp; sync</button>
   </div>
 </div>
@@ -390,7 +386,7 @@ position:absolute; left:10px; bottom:70px; z-index:999; background:rgba(31,42,31
 
 <script>
 'use strict';
-const APP_VERSION = '2026-11-16.2';
+const APP_VERSION = '2026-11-17.1';
 
 /* ================= HELPERS ================= */
 function uid(prefix){ return (prefix||'id') + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
@@ -474,6 +470,9 @@ const JOB_TYPES = {
   'Water':        { icon:'💧', wh:0 },
   'Other':        { icon:'📋', wh:0 }
 };
+/* SLIM-7: what a NEW job can be. Fencing, Water and Other stay in JOB_TYPES above so old records keep
+   their icon, still load (migrate maps unknown types to 'Other'), and still edit as what they are. */
+const JOB_CHOICES = ['Fertiliser','Spray','Sowing','Slashing','Hay / silage'];
 
 let undoableMoveId = null;   // the move just made — the only one Undo is offered on; any later change clears it
 const Store = {
@@ -1137,7 +1136,7 @@ function refreshHeader(){
    provider if this ever ships to other farms. */
 let map = null, paddockLayer = null, featureLayer = null, noteLayer = null, drawShapes = null, locateMarker = null;
 // One thing at a time can own a tap on the map:
-// 'draw' | 'editShape' | 'pin' | 'noteLoc' | 'pickPaddock' | null
+// 'draw' | 'editShape' | 'pin' | 'noteLoc' | null   (SLIM-3: 'pickPaddock' gone)
 let mapMode = null, modeCtx = null;
 let drawPoints = [], editPts = [];
 const WH_RED = '#e5484d';
@@ -1388,10 +1387,7 @@ function renderModeBar(){
   } else if (mapMode === 'noteLoc'){
     msg = 'Tap the spot (or the paddock) this note is about.';
     btns = `<button class="btn" onclick="cancelNoteLocation()">Cancel</button>`;
-  } else if (mapMode === 'pickPaddock'){
-    msg = `Tap the paddock to move ${esc(modeCtx.label || 'them')} into.`;
-    btns = `<button class="btn" onclick="exitMode()">Cancel</button>`;
-  }
+  }   /* SLIM-3: the 'pickPaddock' prompt is gone */
   bar.innerHTML = `<div>${msg}</div><div class="mode-btns">${btns}</div>`;
   bar.hidden = false;
 }
@@ -1400,12 +1396,12 @@ function onMapClick(e){
   else if (mapMode === 'editShape') insertVertex(e.latlng);
   else if (mapMode === 'pin') placePin(e.latlng);
   else if (mapMode === 'noteLoc') noteLocationPicked(e.latlng, null);
-  else if (mapMode === 'pickPaddock') toast('Tap inside a paddock');
+  /* SLIM-3: no 'pickPaddock' tap */
 }
 function onPaddockTap(pid, e){
   L.DomEvent.stop(e);
-  if (mapMode === 'pickPaddock') doMove(pid);
-  else if (mapMode === 'noteLoc') noteLocationPicked(e.latlng, pid);
+  /* SLIM-3: no 'pickPaddock' tap */
+  if (mapMode === 'noteLoc') noteLocationPicked(e.latlng, pid);
   else if (mapMode) onMapClick(e);
   else openPaddockDetail(pid);
 }
@@ -1531,31 +1527,31 @@ function openFeatureForm(id){
   const ft = id ? Store.getFeature(id) : null;
   const x = ft || {};
   openModal(`
-    <h2>${ft ? 'Edit pin' : 'New pin'}</h2>
+    <h2>Trough / gate</h2><!-- SLIM-13: was "New pin" / "Edit pin" -->
     <form onsubmit="return submitFeatureForm(event, ${ft ? `'${ft.id}'` : 'null'})">
       <label>What is it?</label>
       <select name="type">${Object.keys(FEATURE_TYPES).map(t => `<option value="${t}" ${x.type === t ? 'selected' : ''}>${FEATURE_TYPES[t]} ${t}</option>`).join('')}</select>
       <label>Name</label>
       <input name="name" required placeholder="e.g. Top trough" value="${esc(x.name||'')}" autocomplete="off">
       <label>Notes</label><textarea name="notes">${esc(x.notes||'')}</textarea>
-      <button class="btn btn-primary" type="submit">Save pin</button>
-      ${ft ? `<button type="button" class="btn btn-danger btn-block" style="margin-top:10px;" onclick="deleteFeature('${ft.id}')">Delete pin</button>` : ''}
+      <button class="btn btn-primary" type="submit">Save</button>
+      ${ft ? `<button type="button" class="btn btn-danger btn-block" style="margin-top:10px;" onclick="deleteFeature('${ft.id}')">Delete</button>` : ''}
     </form>`);
 }
 function submitFeatureForm(ev, id){
   ev.preventDefault(); const f = ev.target;
-  if (!fv(f,'name')) return stop('Give the pin a name');
+  if (!fv(f,'name')) return stop('Give it a name');   // SLIM-13
   const data = { type:fv(f,'type'), name:fv(f,'name'), notes:fv(f,'notes') };
   if (id) Object.assign(Store.getFeature(id), data);
   else if (pendingPin) Store.state.features.push(Object.assign({ id:uid('ft'), lat:pendingPin.lat, lng:pendingPin.lng }, data));
   Store.save(); pendingPin = null;
-  closeModal(); if (mapMode === 'pin') exitMode(); refresh(); toast('Pin saved');
+  closeModal(); if (mapMode === 'pin') exitMode(); refresh(); toast('Saved');   // SLIM-13
   return false;
 }
 function deleteFeature(id){
-  if (!confirm('Delete this pin?')) return;
+  if (!confirm('Delete this trough / gate?')) return;   // SLIM-13
   Store.state.features = Store.state.features.filter(x => x.id !== id);
-  Store.save(); closeModal(); refresh(); toast('Pin deleted');
+  Store.save(); closeModal(); refresh(); toast('Deleted');   // SLIM-13
 }
 function renderFeatures(){
   if (!featureLayer) return;
@@ -1641,7 +1637,7 @@ function renderTodo(){
   const done = doneLately();
   let html = `<div class="row-actions" style="margin:0 0 12px 0;">
       <button class="btn btn-secondary" onclick="openNoteForm({todo:true})">＋ To-do</button>
-      <button class="btn btn-secondary" onclick="openJobForm(null, {status:'todo'})">＋ Field job</button>
+      <button class="btn btn-secondary" onclick="openJobForm(null, {status:'todo'})">＋ Job</button><!-- SLIM-13: was "Field job" -->
     </div>`;
   if (whs.length){
     html += `<div class="card"><h3>Keep stock out</h3>${whs.map(x => `
@@ -1657,7 +1653,7 @@ function renderTodo(){
   if (overdue.length) html += `<div class="card"><h3 style="color:var(--danger);">Overdue</h3>${overdue.map(i => todoRow(i)).join('')}</div>`;
   if (rest.length) html += `<div class="card"><h3>To do</h3>${rest.map(i => todoRow(i)).join('')}</div>`;
   if (!open.length && !whs.length){
-    html += `<div class="card"><div class="empty-state">Nothing waiting.<br>Add a to-do, or plan a field job with a due date, and it shows up here until you tick it off.</div></div>`;
+    html += `<div class="card"><div class="empty-state">Nothing waiting.<br>Add a to-do, or plan a job with a due date, and it shows up here until you tick it off.</div></div>`;
   }
   if (done.length){
     html += `<details class="card" ${todoDoneOpen ? 'open' : ''} ontoggle="todoDoneOpen = this.open"><summary class="sec-h" style="cursor:pointer; margin:0;">Done in the last fortnight (${done.length})</summary>
@@ -1723,15 +1719,12 @@ function renderActivity(){
   const all = buildActivity();
   const list = activityFilter === 'all' ? all : all.filter(x => x.cat === activityFilter);
   const chips = [['all','All'],['notes','Notes'],['jobs','Jobs'],['stock','Stock'],['money','Money']];
-  let html = `<div class="row-actions" style="margin:0 0 12px 0;">
-      <button class="btn btn-secondary" onclick="openNoteForm()">＋ Note</button>
-      <button class="btn btn-secondary" onclick="openJobForm()">＋ Field job</button>
-    </div>
-    <div class="chips scroll" style="margin-bottom:10px;">
+  /* SLIM-6: no "+ Note" / "+ Field job" here — both are on the map */
+  let html = `<div class="chips scroll" style="margin-bottom:10px;">
       ${chips.map(c => `<button class="chip ${activityFilter === c[0] ? 'on' : ''}" onclick="setActivityFilter('${c[0]}')">${c[1]}</button>`).join('')}
     </div>`;
   if (!list.length){
-    html += `<div class="card"><div class="empty-state">${all.length ? 'Nothing of that kind yet.' : 'Nothing recorded yet.<br>Notes, field jobs, stock moves, purchases and sales all build up here, newest first.'}</div></div>`;
+    html += `<div class="card"><div class="empty-state">${all.length ? 'Nothing of that kind yet.' : 'Nothing recorded yet.<br>Notes, jobs, stock moves, purchases and sales all build up here, newest first.'}</div></div>`;
   } else {
     let day = null, open = false;
     list.slice(0, 300).forEach(x => {
@@ -1849,24 +1842,15 @@ function renderStock(){
   }
   document.getElementById('stockBody').innerHTML = html;
 }
-// The same list, reachable straight off the map — where you think about moving cattle.
-function openStockSheet(){
-  const active = Store.activeMobs();
-  openModal(`
-    <h2>Livestock</h2>
-    ${active.length ? active.map(m => mobRowHtml(m, true)).join('')
-      : '<div class="empty-state">No stock on farm yet — add a mob to start moving cattle around.</div>'}
-    <button class="btn btn-primary" onclick="openMobForm()">＋ New mob</button>`);
-}
+/* SLIM-2: openStockSheet() (the "Livestock" sheet off the map) is gone — the Stock tab is the same list. */
 
 /* ================= ONE MOB ================= */
-let mobTab = 'details';
+/* SLIM-5: no Details / History tabs on a mob — one scrolling page (mobTab / setMobTab gone). */
 function openMobDetail(id){
   closeModal();
-  currentMobId = id; mobTab = 'details';
+  currentMobId = id;
   showView('mobdetail');
 }
-function setMobTab(t){ mobTab = t; renderMobDetail(currentMobId); }
 function recordList(records, kind, titleFn, amtFn, openFn){
   if (!records.length) return '<div class="empty-state" style="padding:12px;">None yet</div>';
   return records.slice().sort((a,b) => String(b.date).localeCompare(String(a.date))).map(r => {
@@ -1915,33 +1899,21 @@ function renderMobDetail(id){
         <button class="btn btn-secondary btn-sm" onclick="openWeightForm(null,'${id}')">Weigh</button>
         ${Store.activeMobs().length > 1 ? `<button class="btn btn-secondary btn-sm" onclick="openMergeForm('${id}')">Merge</button>` : ''}
       </div>` : ''}
-    </div>
-    <div class="tabs">
-      <button class="${mobTab === 'details' ? 'on' : ''}" onclick="setMobTab('details')">Details</button>
-      <button class="${mobTab === 'history' ? 'on' : ''}" onclick="setMobTab('history')">History</button>
     </div>`;
-
-  if (mobTab === 'history'){
-    const moves = Store.state.movements.filter(v => v.mobId === id)
-      .map((v, i) => ({ v, i })).sort((a,b) => String(b.v.date).localeCompare(String(a.v.date)) || b.i - a.i);
-    html += `<div class="card" style="padding:4px 14px;">` + (moves.length ? moves.map(x => `
-      <div class="list-item" style="cursor:default;">
-        <div class="main"><div class="title" style="font-weight:500;">${esc(moveLine(x.v))}</div><div class="meta">${fmtDate(x.v.date)}${x.v.notes ? ' · ' + esc(x.v.notes) : ''}</div></div>
-        ${x.v.id === undoableMoveId ? `<button class="btn btn-ghost btn-sm" onclick="undoMove('${x.v.id}')">Undo</button>` : ''}
-      </div>`).join('') : '<div class="empty-state">No moves yet. Each time you shift this mob it is listed here, with how many days it grazed each paddock.</div>') + `</div>`;
-    if (m.notes) html += `<div class="card"><h3>Notes</h3><div style="font-size:14.5px; white-space:pre-wrap;">${esc(m.notes)}</div></div>`;
-  } else {
-    html += `<div class="card">
+  /* SLIM-5: the Details / History tabs are gone — everything is on this one page, moves near the bottom. */
+  const moves = Store.state.movements.filter(v => v.mobId === id)
+    .map((v, i) => ({ v, i })).sort((a,b) => String(b.v.date).localeCompare(String(a.v.date)) || b.i - a.i);
+  html += `<div class="card">
         <div class="card-head"><h3>Where they are</h3></div>
         ${src.length ? src.map(s => {
           const wh = s.paddockId ? activeWithholding(s.paddockId) : null;
           const days = s.since ? Math.max(0, daysBetween(s.since)) : null;
-          return `<div class="list-item">
-            <div class="main" ${s.paddockId ? `onclick="openPaddockDetail('${s.paddockId}')"` : ''}>
+          /* SLIM-4: no Move button on each row — the one Move at the top asks which paddock they come from */
+          return `<div class="list-item" ${s.paddockId ? `onclick="openPaddockDetail('${s.paddockId}')"` : 'style="cursor:default;"'}>
+            <div class="main">
               <div class="title">${s.paddockId ? esc(padName(s.paddockId)) : 'Not in a paddock'}</div>
               <div class="meta">${s.head} hd${days != null ? ` · ${plural(days, 'day')} in` : ''}${wh ? ` · <span style="color:var(--danger);">⚠️ withholding to ${fmtDate(wh.clearDate)}</span>` : ''}</div>
             </div>
-            <button class="btn btn-secondary btn-sm" onclick="openMoveFromMob('${id}', '${s.paddockId || ''}')">Move</button>
           </div>`;
         }).join('') : '<div class="empty-state" style="padding:12px;">None left on farm.</div>'}
       </div>
@@ -1967,22 +1939,30 @@ function renderMobDetail(id){
         ${recordList(f.purchases, 'purchases', p => `${p.headCount} hd · ${fmtDate(p.date)}`, p => -(Number(p.totalCost)||0), 'openPurchaseForm')}
       </div>
       <div class="card">
-        <div class="card-head"><h3>Sales</h3><button class="btn btn-secondary btn-sm" onclick="openSaleForm(null,'${id}')">＋ Add</button></div>
+        <div class="card-head"><h3>Sales</h3></div><!-- SLIM-4: "+ Add" gone — Sell at the top does this -->
         ${recordList(f.sales, 'sales', x => `${x.headCount} hd · ${fmtDate(x.date)}`, x => Number(x.totalRevenue)||0, 'openSaleForm')}
       </div>
       <div class="card">
         <div class="card-head"><h3>Expenses</h3><button class="btn btn-secondary btn-sm" onclick="openExpenseForm(null,'${id}')">＋ Add</button></div>
         ${recordList(f.expenses, 'expenses', e => `${e.category} · ${fmtDate(e.date)}`, e => -(Number(e.amount)||0), 'openExpenseForm')}
       </div>
-      <div class="card">
-        <div class="card-head"><h3>Weights</h3><button class="btn btn-secondary btn-sm" onclick="openWeightForm(null,'${id}')">＋ Add</button></div>
+      ${f.weights.length ? `<div class="card">
+        <div class="card-head"><h3>Weights</h3></div><!-- SLIM-4: "+ Add" gone — Weigh at the top. SLIM-10: card hidden when empty -->
         ${recordList(f.weights, 'weights', w => fmtDate(w.date), w => w.avgWeightKg + ' kg', 'openWeightForm')}
-      </div>
-      <div class="card">
-        <div class="card-head"><h3>Deaths &amp; losses</h3><button class="btn btn-secondary btn-sm" onclick="openLossForm(null,'${id}')">＋ Add</button></div>
+      </div>` : ''}
+      ${f.losses.length ? `<div class="card">
+        <div class="card-head"><h3>Deaths &amp; losses</h3></div><!-- SLIM-4: "+ Add" gone — Loss at the top. SLIM-10: card hidden when empty -->
         ${recordList(f.losses, 'losses', x => `${x.headCount} hd · ${fmtDate(x.date)}`, x => x.cause || '', 'openLossForm')}
-      </div>`;
-  }
+      </div>` : ''}
+      <div class="card" id="mobMoves" style="padding:4px 14px;">
+        <h3 style="margin:10px 0 2px 0;">Moves</h3><!-- SLIM-5: was the History tab -->
+        ${moves.length ? moves.map(x => `
+        <div class="list-item" style="cursor:default;">
+          <div class="main"><div class="title" style="font-weight:500;">${esc(moveLine(x.v))}</div><div class="meta">${fmtDate(x.v.date)}${x.v.notes ? ' · ' + esc(x.v.notes) : ''}</div></div>
+          ${x.v.id === undoableMoveId ? `<button class="btn btn-ghost btn-sm" onclick="undoMove('${x.v.id}')">Undo</button>` : ''}
+        </div>`).join('') : '<div class="empty-state">No moves yet. Each time you shift this mob it is listed here, with how many days it grazed each paddock.</div>'}
+      </div>
+      ${m.notes ? `<div class="card"><h3>Notes</h3><div style="font-size:14.5px; white-space:pre-wrap;">${esc(m.notes)}</div></div>` : ''}`;
   document.getElementById('mobDetailBody').innerHTML = html;
 }
 
@@ -2069,13 +2049,11 @@ function renderExpenses(){
 }
 
 /* ================= ONE PADDOCK ================= */
-let paddockTab = 'now';
-function openPaddockDetail(id, tab){
+/* SLIM-5: no Now / History tabs on a paddock — one scrolling sheet (paddockTab / setPaddockTab gone). */
+function openPaddockDetail(id){
   if (!Store.getPaddock(id)) return;
-  paddockTab = tab || 'now';
   renderPaddockSheet(id);
 }
-function setPaddockTab(id, t){ paddockTab = t; renderPaddockSheet(id); }
 // Grazing periods, the rests between them, jobs and notes — one list, newest first.
 function paddockHistory(pid){
   const rows = [], stays = paddockStays(pid);
@@ -2103,10 +2081,10 @@ function renderPaddockSheet(id){
   const p = Store.getPaddock(id);
   if (!p) return;
   const st = paddockStatus(id);
-  let body = '';
-  if (paddockTab === 'history'){
+  let body = '', historyHtml = '';
+  {   /* SLIM-5: what is there now, then its history underneath */
     const rows = paddockHistory(id);
-    body = rows.length ? rows.map(r => `
+    historyHtml = rows.length ? rows.map(r => `
       <div class="list-item" ${r.tap ? `onclick="${r.tap}"` : 'style="cursor:default;"'}>
         <div class="ic">${r.icon}</div>
         <div class="main">
@@ -2115,7 +2093,8 @@ function renderPaddockSheet(id){
         </div>
       </div>`).join('')
       : '<div class="empty-state">Nothing recorded here yet.<br>Stock moves, fertiliser, spraying and notes for this paddock all build up into its history.</div>';
-  } else {
+  }
+  {
     const todos = todoList().filter(t => t.kind === 'job' ? (Store.getJob(t.id).paddockIds || []).includes(id) : Store.getNote(t.id).paddockId === id);
     body = `
       ${st.wh ? `<div class="banner red"><strong>⚠️ Withholding — keep stock out.</strong><br>${esc(withholdingLine(st.wh))}</div>` : ''}
@@ -2135,7 +2114,8 @@ function renderPaddockSheet(id){
           <button class="btn btn-secondary btn-sm" onclick="openMoveFromMob('${o.mob.id}','${id}')">Move</button>
         </div>`).join('')
         : `<div class="empty-state" style="padding:12px;">Empty${st.free != null ? ' — rested ' + plural(st.free, 'day') : ''}.</div>`}
-      ${todos.length ? `<div class="sec-h" style="margin-top:16px;">To do here</div>${todos.map(t => todoRow(t)).join('')}` : ''}`;
+      ${todos.length ? `<div class="sec-h" style="margin-top:16px;">To do here</div>${todos.map(t => todoRow(t)).join('')}` : ''}
+      <div class="sec-h" style="margin-top:16px;">History</div>${historyHtml}`;
   }
   openModal(`
     <h2>${st.wh ? '⚠️ ' : ''}${esc(p.name)}</h2>
@@ -2144,10 +2124,6 @@ function renderPaddockSheet(id){
       <button class="btn btn-secondary btn-sm" onclick="openMoveIntoPaddock('${id}')">🐄 Move stock in</button>
       <button class="btn btn-secondary btn-sm" onclick="openJobForm(null, {paddockId:'${id}'})">🚜 Job</button>
       <button class="btn btn-secondary btn-sm" onclick="openNoteForm({paddockId:'${id}'})">✎ Note</button>
-    </div>
-    <div class="tabs">
-      <button class="${paddockTab === 'now' ? 'on' : ''}" onclick="setPaddockTab('${id}','now')">Now</button>
-      <button class="${paddockTab === 'history' ? 'on' : ''}" onclick="setPaddockTab('${id}','history')">History</button>
     </div>
     ${body}
     <div class="row-actions" style="margin-top:18px;">
@@ -2237,7 +2213,7 @@ function renderMoveSheet(){
     ${moveInputsHtml(avail)}
     <p class="helptext">Leave “how many” empty to move them all. Put in a smaller number to send part of the mob to another paddock.</p>
     <div class="sec-h" style="margin-top:12px;">Move to</div>
-    <button class="btn btn-secondary btn-block" onclick="pickMoveOnMap()">🗺️ Tap the paddock on the map</button>
+    <!-- SLIM-3: "Tap the paddock on the map" gone — pick from this list -->
     ${dests.map(p => { const n = destNote(p); return `<div class="list-item" onclick="doMove('${p.id}')">
         <div class="main"><div class="title">${esc(p.name)}</div><div class="meta"${n.red ? ' style="color:var(--danger);"' : ''}>${esc(n.text)}</div></div>
         <div class="amt">→</div>
@@ -2255,14 +2231,7 @@ function moveCount(){
   if (n > avail){ toast(`Only ${avail} hd ${mv.from ? 'in ' + padName(mv.from) : 'not yet in a paddock'}`); return null; }
   return n;
 }
-function pickMoveOnMap(){
-  readMoveInputs();
-  const n = moveCount();
-  if (n == null) return;
-  const mob = Store.getMob(mv.mobId);
-  closeModal();
-  setMode('pickPaddock', { label: n < mobRemaining(mv.mobId) ? `${n} of ${mob.name}` : mob.name });
-}
+/* SLIM-3: pickMoveOnMap() gone with its button */
 function doMove(toPid){
   if (!mv) return;
   readMoveInputs();
@@ -2286,7 +2255,7 @@ function doMove(toPid){
   const moved = moveHead(mv.mobId, mv.from, toPid || null, n, mv.date, '');
   undoableMoveId = moved ? moveHead.lastId : null;
   mv = null;
-  if (mapMode === 'pickPaddock') exitMode();
+  /* SLIM-3: no 'pickPaddock' mode to leave */
   closeModal(); refresh();
   toast(moved ? `Moved ${moved} hd ${where}` : 'Nothing to move');
 }
@@ -2370,9 +2339,7 @@ function openMobForm(id, preset){
         <select name="paddockId">${paddockOptions(pre.paddockId, 'Not in a paddock yet')}</select>`}
       </div>
       <p class="helptext" id="mobBoughtHint">Next you put in the purchase: how many, what they cost and which paddock.</p>
-      <label>Colour on the map</label>
-      <input type="hidden" name="colour" value="${colour}">
-      <div class="chips">${MOB_COLOURS.map(c => `<button type="button" class="colour-chip ${c === colour ? 'on' : ''}" style="background:${c};" onclick="pickMobColour(this,'${c}')" aria-label="Colour"></button>`).join('')}</div>
+      <input type="hidden" name="colour" value="${colour}"><!-- SLIM-9: no colour picker — a mob keeps its colour, a new one gets the next free colour -->
       <label>Notes</label>
       <textarea name="notes">${esc(x.notes||'')}</textarea>
       <button class="btn btn-primary" type="submit" id="mobSaveBtn">Save mob</button>
@@ -2391,10 +2358,7 @@ function paddockOptions(selectedId, emptyLabel){
   return (emptyLabel != null ? `<option value="">${esc(emptyLabel)}</option>` : '')
     + sortedPaddocks().map(p => `<option value="${p.id}" ${p.id === selectedId ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
 }
-function pickMobColour(btn, c){
-  btn.form.elements.colour.value = c;
-  btn.parentNode.querySelectorAll('.colour-chip').forEach(b => b.classList.toggle('on', b === btn));
-}
+/* SLIM-9: pickMobColour() gone with the picker */
 function submitMobForm(ev, id){
   ev.preventDefault(); const f = ev.target;
   const bought = fv(f,'sourceType') === 'purchased';
@@ -2512,8 +2476,7 @@ function submitMergeForm(ev, mobId){
   const ids = Array.from(ev.target.querySelectorAll('input[name=merge]:checked')).map(el => el.value);
   if (!ids.length){ toast('Tick the mobs to merge in'); return false; }
   const dst = Store.getMob(mobId);
-  const names = ids.map(i => Store.getMob(i).name).join(' and ');
-  if (!confirm(`Merge ${names} into ${dst.name}?\n\nThis cannot be undone.`)) return false;
+  /* SLIM-14: no "are you sure" — ticking the mobs and pressing Merge is the decision */
   const s = Store.state;
   ids.forEach(srcId => {
     const src = Store.getMob(srcId);
@@ -2814,12 +2777,13 @@ function openJobForm(id, preset){
   const type = x.type || 'Fertiliser';
   const wh = j ? (Number(j.withholdingDays)||0) : JOB_TYPES[type].wh;
   const pads = sortedPaddocks();
+  const choices = JOB_CHOICES.includes(type) ? JOB_CHOICES : JOB_CHOICES.concat([type]);   // SLIM-7: an old Fencing / Water / Other job still shows as what it is
   openModal(`
-    <h2>${j ? 'Field job' : 'New field job'}</h2>
+    <h2>${j ? 'Job' : 'New job'}</h2><!-- SLIM-13: was "Field job" -->
     <form onsubmit="return submitJobForm(event, ${j ? `'${j.id}'` : 'null'})">
       <div class="field-row">
         <div><label>Job</label>
-          <select name="type" onchange="onJobTypeChange(this.form)">${Object.keys(JOB_TYPES).map(t => `<option value="${t}" ${t === type ? 'selected' : ''}>${JOB_TYPES[t].icon} ${t}</option>`).join('')}</select>
+          <select name="type" onchange="onJobTypeChange(this.form)">${choices.map(t => `<option value="${t}" ${t === type ? 'selected' : ''}>${JOB_TYPES[t].icon} ${t}</option>`).join('')}</select>
         </div>
         <div><label>Status</label>
           <select name="status" onchange="onJobStatusChange(this.form)">
@@ -2828,8 +2792,8 @@ function openJobForm(id, preset){
           </select>
         </div>
       </div>
-      <label>Product / detail</label>
-      <input name="title" placeholder="e.g. Single super 100 kg/ha" value="${esc(x.title||'')}" autocomplete="off">
+      <label>Product / notes</label><!-- SLIM-8: one box. The old Notes box only appears on a job that already has notes, so nothing saved is hidden. -->
+      <input name="title" placeholder="e.g. Single super 100 kg/ha, top end only" value="${esc(x.title||'')}" autocomplete="off">
       <label>Paddocks</label>
       ${pads.length ? `<div class="chips" id="jobPads">${pads.map(p => `<button type="button" class="chip ${jobDraft.paddockIds.includes(p.id) ? 'on' : ''}" onclick="toggleJobPaddock(this,'${p.id}')">${esc(p.name)}</button>`).join('')}</div>`
         : '<p class="helptext">No paddocks drawn yet — the job will be saved against the whole farm.</p>'}
@@ -2838,7 +2802,7 @@ function openJobForm(id, preset){
         <div id="jobWhWrap"><label>Withholding (days)</label><input name="withholdingDays" type="number" inputmode="numeric" min="0" value="${wh}"></div>
       </div>
       <p class="helptext" id="jobHint"></p>
-      <label>Notes</label><textarea name="notes">${esc(x.notes||'')}</textarea>
+      ${x.notes ? `<label>Notes</label><textarea name="notes">${esc(x.notes)}</textarea>` : ''}
       <button class="btn btn-primary" type="submit">Save job</button>
       ${j ? `<button type="button" class="btn btn-danger btn-block" style="margin-top:10px;" onclick="deleteJob('${j.id}')">Delete</button>` : ''}
     </form>`);
@@ -3365,29 +3329,30 @@ function mapImportRow(row){
   };
 }
 let importDraft = [], importPaddock = '';
+let importTarget = 'new';   // SLIM-12: one "Add to" for every row — 'new' (a new mob per row) or a mob id
 function showImportDraft(rawRows){
   importDraft = rawRows.map(mapImportRow).filter(r => r.headCount > 0 || r.totalCost > 0);
-  importPaddock = '';
+  importPaddock = ''; importTarget = 'new';
   renderImportDraft();
 }
-function setImportTarget(i, v){ importDraft[i].target = v; renderImportDraft(); }
+function setImportTarget(v){ importTarget = v; renderImportDraft(); }   // SLIM-12: was per row
 function removeImportRow(i){ importDraft.splice(i, 1); renderImportDraft(); }
 function renderImportDraft(){
   const box = document.getElementById('importReview');
   if (!importDraft.length){ box.innerHTML = ''; return; }
   box.innerHTML = `<div class="card">
     <h3>${plural(importDraft.length, 'row')} found — check before saving</h3>
+    <label>Add them to</label><!-- SLIM-12: one choice for every row -->
+    <select onchange="setImportTarget(this.value)">
+      <option value="new" ${importTarget === 'new' ? 'selected' : ''}>A new mob for each row</option>
+      ${Store.getMobs().map(m => `<option value="${m.id}" ${importTarget === m.id ? 'selected' : ''}>${esc(m.name)}</option>`).join('')}
+    </select>
     <label>Put them all in (optional)</label>
     <select onchange="importPaddock = this.value">${paddockOptions(importPaddock, 'Not in a paddock yet')}</select>
     <div style="height:10px;"></div>
     ${importDraft.map((r, i) => `
       <div class="import-row">
-        <label style="margin-top:0;">Add to</label>
-        <select onchange="setImportTarget(${i}, this.value)">
-          <option value="new" ${r.target === 'new' ? 'selected' : ''}>A new mob</option>
-          ${Store.getMobs().map(m => `<option value="${m.id}" ${r.target === m.id ? 'selected' : ''}>${esc(m.name)}</option>`).join('')}
-        </select>
-        ${r.target === 'new' ? `<label>New mob name</label><input value="${esc(r.mobName)}" onchange="importDraft[${i}].mobName = this.value">` : ''}
+        ${importTarget === 'new' ? `<label style="margin-top:0;">New mob name</label><input value="${esc(r.mobName)}" onchange="importDraft[${i}].mobName = this.value">` : ''}
         <div class="grid2">
           <div><label${dateProblem(r.date) ? ' style="color:var(--danger);"' : ''}>${dateProblem(r.date) ? 'Date — set it' : 'Date'}</label><input value="${esc(r.date)}" onchange="importDraft[${i}].date = this.value; renderImportDraft()" type="date"></div>
           <div><label>Head</label><input value="${r.headCount}" onchange="importDraft[${i}].headCount = Number(this.value)||0" type="number"></div>
@@ -3406,7 +3371,7 @@ function confirmImport(){
   if (wrong >= 0){ toast(`Row ${wrong + 1}: check the date and the head count`); return; }
   const s = Store.state;
   importDraft.forEach(r => {
-    let mob = r.target !== 'new' ? Store.getMob(r.target) : null;
+    let mob = importTarget !== 'new' ? Store.getMob(importTarget) : null;   // SLIM-12
     if (!mob){
       // Head come from the purchase below, so the mob itself starts at 0 — not counted twice.
       mob = { id:uid('mob'), name:(r.mobName || 'Imported purchase').trim(), species:'Cattle', colour:nextMobColour(), headCount:0,
